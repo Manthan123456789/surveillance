@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>SURVEILLANCE</title>
+  <!-- Google Fonts (non-blocking – gracefully ignored when offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'" onerror="this.media='all'">
+  <script>
+    window.onerror = function(message, source, lineno, colno, error) {
+      document.body.innerHTML = '<div style="color:red; background:white; padding:20px; z-index:9999; position:relative; font-size:24px; font-weight:bold;">' + 
+        'ERROR: ' + message + '<br>Line: ' + lineno + '<br>Stack: ' + (error ? error.stack : 'N/A') + '</div>';
+    };
+    window.addEventListener('unhandledrejection', function(event) {
+      document.body.innerHTML = '<div style="color:red; background:white; padding:20px; z-index:9999; position:relative; font-size:24px; font-weight:bold;">' + 
+        'PROMISE REJECTION: ' + event.reason + '</div>';
+    });
+  </script>
+  <!-- Lucide Icons (local bundle – works offline) -->
+  <script src="lucide.min.js"></script>
+  <!-- SheetJS for Excel Export (local bundle – works offline) -->
+  <script src="jszip.min.js"></script>
+  <script src="xlsx.full.min.js"></script>
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="style.css?v=8">
+</head>
+<body>
+
+  <!-- Background Decorative Mesh -->
+  <div class="bg-mesh">
+    <div class="mesh-sphere sphere-1"></div>
+    <div class="mesh-sphere sphere-2"></div>
+    <div class="mesh-sphere sphere-3"></div>
+  </div>
+
+  <!-- LOGIN CONTAINER -->
+  <main id="login-view" class="view-container active" style="display:flex; opacity:1;">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="logo-icon-wrapper">
+          <i data-lucide="shield-alert" class="logo-icon animate-pulse"></i>
+        </div>
+        <h1>SURVEILLANCE</h1>
+      </div>
+
+      <form id="login-form">
+        <div class="input-group">
+          <label for="username">USER ID</label>
+          <div class="input-wrapper">
+            <i data-lucide="user" class="field-icon"></i>
+            <input type="text" id="username" placeholder="ENTER USER ID" required autocomplete="username">
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label for="password">PASSWORD</label>
+          <div class="input-wrapper">
+            <i data-lucide="lock" class="field-icon"></i>
+            <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+        </div>
+
+        <div class="error-msg-container" id="login-error-container">
+          <i data-lucide="alert-circle" class="error-icon"></i>
+          <span id="login-error-text">Incorrect credentials. Please try again.</span>
+        </div>
+
+        <button type="submit" class="btn-primary login-btn">
+          <i data-lucide="log-in" style="width: 18px; height: 18px;"></i>
+          <span>LOGIN</span>
+          <i data-lucide="arrow-right" style="width: 18px; height: 18px;"></i>
+          <div class="spinner" id="login-spinner"></div>
+        </button>
+      </form>
+      <div class="login-footer">
+        <span>Protected by AES End-to-End Encryption</span>
+      </div>
+    </div>
+  </main>
+
+  <!-- DASHBOARD CONTAINER (MAIN VIEW) -->
+  <main id="main-view" class="view-container active" style="display:flex; opacity:1;">
+    <!-- TOP NAVIGATION BAR -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="brand">
+          <div style="width: 14px; height: 14px; background-color: var(--success); border-radius: 50%; box-shadow: 0 0 12px var(--success-glow);"></div>
+          <span class="brand-text">SURVEILLANCE LOG</span>
+        </div>
+        <div class="sync-status">
+          <span class="status-dot" style="display: none;"></span>
+          <span class="status-text" style="display: none;"></span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="user-profile">
+          <i data-lucide="user-check" class="profile-icon"></i>
+          <span class="profile-name" id="user-badge-id">surv_agent</span>
+        </div>
+        <nav class="nav-actions">
+          <button id="btn-major" class="btn-nav" title="View Major">
+            <i data-lucide="star"></i>
+          </button>
+          <button id="btn-all-entries" class="btn-nav" title="View All Entries">
+            <i data-lucide="list"></i>
+          </button>
+          <div class="nav-divider"></div>
+          <button id="btn-home" class="btn-nav" title="Home View">
+            <i data-lucide="home"></i>
+          </button>
+
+          <button id="btn-barred-global" class="btn-nav" title="Barred Guests" style="color: var(--danger);">
+            <i data-lucide="ban"></i>
+          </button>
+          <button id="btn-admin-users" class="btn-nav btn-admin-style" title="Add Member" style="display: flex;">
+            <i data-lucide="user-plus"></i>
+          </button>
+          <button id="btn-supervisor-log" class="btn-nav btn-supervisor-style" title="Add Entries" style="display: flex; align-items: center; justify-content: center; background: rgba(99,102,241,0.25); border: 1px solid rgba(99,102,241,0.5); color: #c4b5fd; width: 36px; height: 36px; padding: 0; border-radius: 8px;">
+            <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; display: inline-block;">+</span>
+          </button>
+          <button id="btn-logout" class="btn-nav" title="Logout">
+            <i data-lucide="log-out"></i>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <div class="content-wrapper">
+      <!-- HISTORY RECORDS TABLE PANEL -->
+      <section id="history-table-panel" class="form-panel-card table-panel-card">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <i data-lucide="history" class="panel-icon"></i>
+            <h2 style="display: none;">HISTORY RECORD</h2>
+            <span class="record-badge" id="record-count" style="background: var(--primary-glow); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--primary-glow);">0 Records</span>
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div class="search-box" style="position: relative; width: 250px;">
+              <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 16px; height: 16px;"></i>
+              <input type="text" id="table-search" placeholder="Search logs..." style="padding-left: 32px; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px; padding-top: 6px; padding-bottom: 6px;" />
+            </div>
+            <button id="btn-refresh" class="btn btn-primary" title="Refresh" style="padding: 6px 12px; height: 34px;">
+              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+            </button>
+            <button id="btn-open-log-modal" class="btn btn-primary btn-add-entries" title="Add Entries" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; width: 36px; height: 36px; padding: 0; border-radius: 8px; font-weight: 900; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(99,102,241,0.5); flex-shrink: 0;">
+              <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; display: inline-block;">+</span>
+            </button>
+          </div>
+        </div>
+        <div class="table-responsive">
+          <table class="logs-table">
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Guest Name</th>
+                <th>Card</th>
+                <th>Other Info</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="logs-table-body">
+              <tr>
+                <td colspan="7" class="no-records-row">
+                  <div class="empty-state">
+                    <i data-lucide="inbox"></i>
+                    <p>No records found. Enter a log above to display records.</p>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ADMIN USER MANAGEMENT PANEL (ADD MEMBER) -->
+      <section id="admin-panel-card" class="form-panel-card admin-fixed-layout hidden-panel" style="display: none !important;">
+        
+        <!-- HEADER: Centered ADD MEMBER -->
+        <div class="admin-header-bar">
+          <h2 class="admin-main-title">ADD MEMBER</h2>
+        </div>
+
+        <!-- MAIN 2-BOX CONTAINER -->
+        <div class="admin-dual-boxes-grid">
+          
+          <!-- LEFT BOX: ADD MEMBER FORM -->
+          <div class="admin-form-box">
+            <form id="add-user-form" class="admin-member-form">
+              <div class="admin-input-wrap">
+                <label for="new-user-id">USER ID</label>
+                <input type="text" id="new-user-id" placeholder="USER ID" required autocomplete="off">
+              </div>
+
+              <div class="admin-input-wrap">
+                <label for="new-user-pass">PASSWORD</label>
+                <input type="text" id="new-user-pass" placeholder="PASSWORD" required autocomplete="off">
+              </div>
+
+              <!-- ROLE SELECT BUTTONS (OFFICER & SUPERVISOR) -->
+              <div class="admin-role-selector">
+                <button type="button" id="role-btn-officer" class="admin-role-btn active">
+                  <i data-lucide="shield" style="width: 15px; height: 15px;"></i>
+                  <span>OFFICER BUTTON</span>
+                </button>
+                <button type="button" id="role-btn-supervisor" class="admin-role-btn">
+                  <i data-lucide="award" style="width: 15px; height: 15px;"></i>
+                  <span>SUPERVISOR BUTTON</span>
+                </button>
+                <input type="hidden" id="new-user-role" value="officer">
+              </div>
+
+              <!-- ADD BUTTON -->
+              <button type="submit" id="btn-add-user-submit" class="admin-submit-btn">
+                <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i>
+                <span>ADD BUTTON</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- RIGHT BOX: ACTIVE USER (ONLY CONTENT INSIDE MOVES UP/DOWN) -->
+          <div class="admin-active-users-box">
+            <div class="admin-active-header">
+              <span class="active-indicator-dot"></span>
+              <h3>ACTIVE USER</h3>
+            </div>
+
+            <!-- SCROLLABLE LIST OF ACTIVE MEMBERS -->
+            <div class="admin-users-scroll-area">
+              <ul id="users-list" class="admin-users-card-list">
+                <!-- User items rendered here dynamically -->
+              </ul>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- BOTTOM WATERMARK / SIGNATURE: MANTHAN GOSAVI 007 -->
+        <div class="admin-bottom-bar">
+          <span class="admin-author-tag">MANTHAN GOSAVI 007</span>
+        </div>
+
+      </section>
+
+      <!-- MAJOR PANEL -->
+      <section id="major-panel-card" class="form-panel-card hidden-panel" style="display: none !important;">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; gap: 10px; flex-wrap: wrap;">
+          <!-- Left: View Each Entries By Guest Name Button (ONLY in Major Patron) -->
+          <div style="flex: 1; display: flex; align-items: center; justify-content: flex-start;">
+            <button id="btn-toggle-major-view" class="btn btn-secondary" style="padding: 8px 16px; font-weight: 700; border-radius: 8px; display: flex; align-items: center; gap: 8px; height: 38px; font-size: 0.85rem; border: 1.5px solid rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.12); color: #c4b5fd; cursor: pointer; white-space: nowrap;">
+              <i data-lucide="list" style="width: 16px; height: 16px; color: #a78bfa;"></i>
+              <span id="btn-toggle-major-view-text">VIEW EACH ENTRIES BY GUEST NAME</span>
+            </button>
+          </div>
+          <!-- Center: Title -->
+          <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <i data-lucide="star" class="panel-icon" style="color: #fbbf24;"></i>
+            <h2 style="margin: 0; white-space: nowrap; font-size: 1.4rem; font-weight: 800; letter-spacing: 1px;">MAJOR PATRON</h2>
+          </div>
+          <!-- Right: Search & Refresh -->
+          <div style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
+            <div class="search-box" style="position: relative; width: 280px; max-width: 100%;">
+              <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 16px; height: 16px;"></i>
+              <input type="text" id="major-search" placeholder="Search patron..." style="padding-left: 38px; width: 100%; box-sizing: border-box; height: 38px;" />
+            </div>
+            <button id="btn-major-search-action" class="btn btn-primary" style="padding: 8px 18px; font-weight: bold; border-radius: 8px; display:flex; align-items:center; gap:6px; height: 38px;">
+              <i data-lucide="search" style="width:16px;height:16px;"></i>
+              <span>Search</span>
+            </button>
+            <button id="refreshMajor" class="btn btn-secondary" title="Refresh" style="padding: 8px 12px; border-radius: 8px; height: 38px;">
+              <i data-lucide="refresh-cw" style="width:16px;height:16px;"></i>
+            </button>
+          </div>
+        </div>
+        <div id="major-list-container" style="flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+          <!-- Major guest cards or entries by guest will be injected here -->
+        </div>
+      </section>
+
+      <!-- SUPERVISOR HOME PANEL -->
+      <section id="supervisor-home-panel" class="hidden-panel" style="display: none !important; gap: 20px; height: calc(100vh - 100px); width: 100%;">
+        <div id="supervisor-all-entries" style="flex: 1.5; background: var(--card-bg); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; overflow: hidden; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+          <!-- Content populated via JS -->
+        </div>
+
+        <!-- Right: SEND Box -->
+        <div style="flex: 0 0 35%; align-self: flex-start; max-height: 100%; background: var(--card-bg); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); display: flex; flex-direction: column; padding: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+          <div id="supervisor-send-box" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px;">
+            <!-- Content populated via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- STAFF PANEL -->
+      <!-- BARRED GUESTS PANEL -->
+      <section id="barred-guests-panel-card" class="form-panel-card barred-fixed-layout hidden-panel" style="display: none !important;">
+        
+        <!-- HEADER: Title Centered -->
+        <div class="barred-header-bar">
+          <h2 class="barred-main-title">BARRED GUEST</h2>
+        </div>
+
+        <!-- TOOLBAR: Controls directly below header -->
+        <div class="barred-toolbar">
+          
+          <!-- LEFT CONTROLS -->
+          <div class="barred-toolbar-left">
+            <!-- Hidden file input for Excel, Word, and PDF -->
+            <input type="file" id="barred-doc-upload" accept=".xlsx, .xls, .csv, .docx, .doc, .pdf, .txt" style="display: none;" />
+            
+            <!-- IMPORT BUTTON EXCEL AND WORD AND PDF -->
+            <button id="btn-import-barred-doc" class="btn-barred-tool btn-barred-import" title="Import from Excel, Word, or PDF">
+              <i data-lucide="upload-cloud" style="width: 16px; height: 16px;"></i>
+              <span>IMPORT EXCEL / WORD / PDF</span>
+            </button>
+
+            <!-- ADD BARRED -->
+            <button id="btn-open-barred-modal" class="btn-barred-tool btn-barred-add" title="Add Barred Guest">
+              <i data-lucide="user-plus" style="width: 16px; height: 16px;"></i>
+              <span>ADD BARRED</span>
+            </button>
+
+            <!-- DELETE ALL -->
+            <button id="btn-delete-all-barred" class="btn-barred-tool btn-barred-delete-all" title="Delete All Barred Guests">
+              <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+              <span>DELETE ALL</span>
+            </button>
+          </div>
+
+          <!-- RIGHT CONTROLS -->
+          <div class="barred-toolbar-right">
+            <!-- EDIT BUTTON -->
+            <button id="btn-toggle-barred-edit" class="btn-barred-tool btn-barred-edit" title="Toggle Edit Mode">
+              <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
+              <span>EDIT BUTTON</span>
+            </button>
+
+            <!-- SEARCH BUTTON / INPUT -->
+            <div class="barred-search-wrap">
+              <i data-lucide="search" class="barred-search-icon"></i>
+              <input type="text" id="barred-search" placeholder="SEARCH BARRED GUEST..." />
+            </div>
+          </div>
+
+        </div>
+
+        <!-- CENTRAL DISPLAY BOX: ONLY CARDS MOVE UP AND DOWN -->
+        <div class="barred-central-box">
+          <div id="barred-list-container" class="barred-cards-scroll-area">
+            <!-- 3-column cards injected dynamically by JS -->
+          </div>
+        </div>
+
+        <!-- BOTTOM WATERMARK / SIGNATURE -->
+        <div class="barred-bottom-bar">
+          <span class="barred-author-tag">MANTHAN GOSVI 007</span>
+        </div>
+
+      </section>
+
+      <!-- MODAL: Barred Guest Form -->
+      <div id="barred-guest-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 90%; width: 800px; padding: 0;">
+          <div class="modal-header" style="background: var(--card-bg); border-bottom: 1px solid rgba(255,255,255,0.1); padding: 15px 20px;">
+            <h3 style="margin: 0;"><i data-lucide="ban" style="vertical-align: middle; margin-right: 8px;"></i>ADD BARRED GUEST</h3>
+            <button id="btn-close-barred-modal" class="btn-close" style="background:transparent; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+          </div>
+          <div class="modal-body" style="padding: 20px;">
+            <form id="barred-guest-form" style="display: flex; gap: 20px;">
+              <!-- Left: Form Fields -->
+              <div style="flex: 2; display: flex; flex-direction: column; gap: 15px;">
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <label style="width: 120px; font-weight: bold;">GUEST NAME</label>
+                  <input type="text" id="barred-guestname" class="form-control" placeholder="(ENTER KEYWORD)" required style="flex: 1;" />
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <label style="width: 120px; font-weight: bold;">REASON</label>
+                  <input type="text" id="barred-reason" class="form-control" placeholder="(ENTER KEYWORD)" required style="flex: 1;" />
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <label style="width: 120px; font-weight: bold;">DATE</label>
+                  <input type="date" id="barred-date" class="form-control" required style="flex: 1;" />
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <label style="width: 120px; font-weight: bold;">INST</label>
+                  <input type="text" id="barred-inst" class="form-control" placeholder="(ENTER KEYWORD)" style="flex: 1;" />
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <label style="width: 120px; font-weight: bold;">PROPERTY</label>
+                  <input type="text" id="barred-property" class="form-control" placeholder="(ENTER KEYWORD)" style="flex: 1;" />
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+                  <label style="width: 120px; font-weight: bold;">OTHER INFO</label>
+                  <input type="text" id="barred-otherinfo" class="form-control" placeholder="(ENTER KEYWORD)" style="flex: 1;" />
+                </div>
+              </div>
+              
+              <!-- Right: Photo Upload -->
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; border: 2px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; position: relative; justify-content: center; min-height: 200px; cursor: pointer; text-align: center; background: rgba(0,0,0,0.2);" id="barred-photo-box">
+                <input type="file" id="barred-photo-input" accept="image/*" style="display: none;" />
+                <div id="barred-photo-placeholder" style="color: var(--text-muted); font-size: 0.9rem;">
+                  <i data-lucide="upload-cloud" style="width: 32px; height: 32px; margin-bottom: 8px;"></i>
+                  <br/>UPLOAD<br/>PHOTO AUTO<br/>FIT THIS BOX
+                </div>
+                <img id="barred-photo-preview" src="" alt="Preview" style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; border-radius: 6px;" />
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: center;">
+            <button type="submit" form="barred-guest-form" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; display:flex; align-items:center; justify-content:center; gap:8px;">
+              <i data-lucide="shield-check" style="width:20px;height:20px;"></i>
+              <span>SUBMIT</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ALL ENTRIES PANEL -->
+      <section id="all-entries-panel-card" class="form-panel-card all-entries-fixed-layout hidden-panel" style="display: none !important;">
+        
+        <!-- TOP HEADER: TITLE CENTERED & GAMING DAY RIGHT-ALIGNED -->
+        <div class="all-entries-header-bar">
+          <div class="all-entries-header-side"></div>
+          <h2 class="all-entries-title">ALL ENTRIES</h2>
+          <div class="all-entries-header-side right">
+            <span id="all-entries-gaming-date" class="all-entries-gaming-tag">TODAY GAMING DAY</span>
+          </div>
+        </div>
+
+        <!-- TOOLBAR -->
+        <div class="all-entries-toolbar">
+          
+          <!-- SEARCH AND TOGGLE (LEFT) -->
+          <div class="all-entries-toolbar-left">
+            <div class="all-entries-search-wrap">
+              <i data-lucide="search" class="all-entries-search-icon"></i>
+              <input type="text" id="all-entries-search" placeholder="SEARCH" />
+            </div>
+
+            <button id="btn-delete-selected" class="btn-danger btn-delete-selected-all" style="display: none;" title="Delete Selected Entries">
+              <i data-lucide="trash-2" style="width: 16px; height: 16px; pointer-events: none;"></i> Delete Selected
+            </button>
+
+            <button id="btn-view-normal" class="all-entries-toggle-btn active" title="Show Table View">
+              <i data-lucide="table" style="width:15px;height:15px;"></i>
+              <span>ENTRIES</span>
+            </button>
+
+            <button id="btn-view-sentence" class="all-entries-toggle-btn" title="Show Sentences View">
+              <i data-lucide="align-left" style="width:15px;height:15px;"></i>
+              <span>SENTENCES</span>
+            </button>
+          </div>
+          
+          <!-- SUB BUTTONS (RIGHT SIDE) -->
+          <div class="all-entries-toolbar-right">
+            <!-- EXPORT TO EXCEL -->
+            <button id="btn-export-all" class="all-entries-export-btn" title="Export to Excel">
+              <i data-lucide="file-spreadsheet" style="width: 17px; height: 17px;"></i>
+              <span>EXPORT TO EXCEL</span>
+            </button>
+
+            <!-- CALENDAR DATE PICKER -->
+            <label for="all-entries-datepicker" class="all-entries-date-btn" title="Select Date">
+              <i data-lucide="calendar" style="width: 16px; height: 16px; color: #60a5fa;"></i>
+              <span>DATE SELECT</span>
+              <input type="date" id="all-entries-datepicker" />
+            </label>
+          </div>
+
+        </div>
+
+        <!-- CENTRAL DISPLAY BOX: ONLY ENTRIES MOVE UP AND DOWN -->
+        <div class="all-entries-display-box">
+          <!-- MAIN TABLE CONTENT (NORMAL VIEW) -->
+          <div id="all-entries-normal-view" class="all-entries-scroll-area">
+            <table class="logs-table">
+              <thead>
+                <tr>
+                  <th class="checkbox-col"><input type="checkbox" id="select-all-entries"></th>
+                  <th>Date &amp; Time</th>
+                  <th>SURV</th>
+                  <th>Type</th>
+                  <th>Amount</th>
+                  <th>Guest Name</th>
+                  <th>Card</th>
+                  <th>Other Info</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="all-entries-table-body">
+                <!-- Dynamically populated by JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SENTENCE VIEW CONTENT -->
+          <div id="all-entries-list-container" class="all-entries-list all-entries-scroll-area" style="display: none;">
+            <!-- All entries sentences will be injected here -->
+          </div>
+        </div>
+
+        <!-- BOTTOM DAY NAVIGATION (FIXED) -->
+        <div class="all-entries-bottom-bar">
+          <div class="all-entries-nav-row">
+            <div class="day-pagination">
+              <button class="day-nav-btn" id="day-nav-prev">
+                <i data-lucide="chevron-left" style="width:14px;height:14px;"></i>
+                <span>PREV</span>
+              </button>
+              <div id="day-numbers-container" class="day-numbers-list">
+                <!-- Days 1-31 injected by JS -->
+              </div>
+              <button class="day-nav-btn" id="day-nav-next">
+                <span>NEXT</span>
+                <i data-lucide="chevron-right" style="width:14px;height:14px;"></i>
+              </button>
+            </div>
+            <div class="all-entries-goto-box">
+              <span>GOTO</span>
+              <input type="number" id="goto-day-input" min="1" max="31" />
+            </div>
+          </div>
+
+          <!-- BOTTOM-RIGHT SIGNATURE: MANTHAN GOSAVI 007 -->
+          <div class="all-entries-author-tag">
+            <span>MANTHAN GOSAVI 007</span>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- TELEGRAM STYLE MESSAGE INPUT (FIXED DOWN AT BOTTOM) -->
+      <section id="log-form-panel">
+        <div id="officer-quick-entry-panel" style="width: 100%; max-width: 100%;">
+          <!-- ONE BOX LIKE TELEGRAM -->
+          <div class="telegram-input-box">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-right: 10px;"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+            <textarea id="officer-quick-input"
+              rows="1"
+              style="flex: 1; resize: none; background: transparent; border: none; color: #ffffff; font-size: 1.05rem; font-family: inherit; font-weight: 500; line-height: 1.4; outline: none; min-height: 48px; max-height: 100px; padding: 12px 4px; overflow-y: auto;"
+            ></textarea>
+            <button id="btn-officer-quick-save"
+              style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 12px; padding: 0 22px; height: 46px; font-weight: 800; font-size: 0.95rem; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 8px; letter-spacing: 0.5px; flex-shrink: 0; box-shadow: 0 4px 14px rgba(99,102,241,0.5);">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+              <span>SEND</span>
+            </button>
+          </div>
+          <div id="officer-quick-feedback" style="font-size: 0.82rem; min-height: 18px; padding-left: 12px; padding-top: 3px; font-weight: 600;"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- MODAL: ADD ENTRIES (LOG FORM) -->
+  <div id="supervisor-log-modal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div class="modal-content" style="max-width: 95vw; width: 1320px; max-height: 90vh; overflow-y: auto; background: #121827; border: 1px solid rgba(255,255,255,0.15); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.25);">
+        <h3 style="margin: 0; display: flex; align-items: center; gap: 8px; font-size: 1.15rem; color: #fff; font-weight: 700; letter-spacing: 0.5px;">
+          <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; color: #a78bfa; display: inline-block;">+</span>
+          <span>ADD ENTRIES (LOG FORM)</span>
+        </h3>
+        <button id="btn-close-log-modal" class="btn-close" style="background:transparent; border:none; color:var(--text-muted); font-size:1.8rem; cursor:pointer; line-height: 1;" title="Close">&times;</button>
+      </div>
+      <div class="modal-body" id="supervisor-log-modal-body" style="padding: 20px;">
+        <form id="entry-form" class="horizontal-form" novalidate>
+          <div class="form-row" style="flex-wrap: nowrap; padding-bottom: 5px; align-items: flex-start;">
+            <!-- DateTime (Hidden from Form) -->
+            <div class="form-group flex-2" style="display: none;">
+              <label for="datetime">Date &amp; Time</label>
+              <div class="input-wrapper">
+                <i data-lucide="calendar" class="field-icon"></i>
+                <input type="datetime-local" id="datetime" required>
+              </div>
+            </div>
+
+            <!-- Hidden CD and Cashier (Removed from view) -->
+            <input type="hidden" id="cd" value="CD-01">
+            <input type="hidden" id="cashier" value="-">
+
+            <!-- Type -->
+            <div class="form-group flex-1-5">
+              <label for="type" style="display: none;">Type</label>
+              <div class="input-wrapper">
+                <input type="text" id="type" placeholder="TYPE" autocomplete="off" required style="padding-left: 16px;">
+              </div>
+              <div class="inline-options-list">
+                <div class="inline-option-item">C/IN</div>
+                <div class="inline-option-item">C/OUT</div>
+                <div class="inline-option-item">ISSUE</div>
+                <div class="inline-option-item">DEPOSIT</div>
+                <div class="inline-option-item">KEYIN</div>
+                <div class="inline-option-item">KEYOUT</div>
+                <div class="inline-option-item">PAID</div>
+              </div>
+            </div>
+
+            <!-- Amount -->
+            <div class="form-group flex-1-5">
+              <label for="amount" style="display: none;">Amount</label>
+              <div class="input-wrapper">
+                <i data-lucide="indian-rupee" class="field-icon"></i>
+                <input type="text" id="amount" placeholder="AMOUNT" autocomplete="off" required>
+              </div>
+              <div class="inline-options-list">
+                <div class="inline-option-item" data-value="5,00,000">500K</div>
+                <div class="inline-option-item" data-value="1,00,000">100K</div>
+                <div class="inline-option-item" data-value="50,000">50K</div>
+                <div class="inline-option-item" data-value="10,000">10K</div>
+                <div class="inline-option-item" data-value="5,00,000">500K</div>
+                <div class="inline-option-item" data-value="5,000">5K</div>
+                <div class="inline-option-item" data-value="1,000">1K</div>
+                <div class="inline-option-item" data-value="500">500</div>
+              </div>
+            </div>
+
+            <!-- Guest Name -->
+            <div class="form-group flex-2">
+              <label for="guestname" style="display: none;">Guest Name</label>
+              <div class="input-wrapper">
+                <i data-lucide="user" class="field-icon"></i>
+                <input type="text" id="guestname" placeholder="GUEST NAME" required>
+              </div>
+              <div class="inline-options-list" id="guestname-options-grid"></div>
+            </div>
+
+            <!-- Card -->
+            <div class="form-group flex-1-5">
+              <label for="card" style="display: none;">Card (Last 4)</label>
+              <div class="input-wrapper">
+                <i data-lucide="credit-card" class="field-icon"></i>
+                <input type="text" id="card" placeholder="CARD" maxlength="10" autocomplete="off">
+              </div>
+              <div class="inline-options-list" id="card-options-grid"></div>
+            </div>
+
+            <!-- Other Info -->
+            <div class="form-group flex-2-5">
+              <label for="otherinfo" style="display: none;">Other Info</label>
+              <div class="input-wrapper">
+                <i data-lucide="info" class="field-icon"></i>
+                <input type="text" id="otherinfo" placeholder="OTHER INFO" autocomplete="off">
+              </div>
+              <div class="inline-options-list" id="otherinfo-options-grid"></div>
+            </div>
+
+            <!-- SURV (Hidden) -->
+            <div class="form-group flex-1" style="display: none;">
+              <label for="surv">SURV</label>
+              <div class="input-wrapper read-only">
+                <i data-lucide="eye" class="field-icon"></i>
+                <input type="text" id="surv" placeholder="SURV ID" readonly>
+              </div>
+            </div>
+
+            <!-- Submit -->
+            <div class="form-group form-submit-container" style="flex-direction: row; gap: 8px; align-self: flex-start;">
+              <button type="submit" id="btn-save" class="btn-primary save-btn" style="background: #a78bfa; color: #000; font-weight: 800; border: none; min-height: 38px; border-radius: 8px; display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; letter-spacing: 1px;">
+                <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                <span id="save-btn-text">SAVE</span>
+                <div class="spinner" id="save-spinner" style="border-top-color: #000;"></div>
+              </button>
+              <button type="button" id="btn-cancel-edit" class="btn-secondary" style="display: none; min-height: 38px; align-items:center; gap:6px;">
+                <i data-lucide="x" style="width:16px;height:16px;"></i>
+                <span>Cancel</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <!-- MODAL: MAJOR GUEST DETAILS -->
+  <div id="major-guest-details-modal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div class="modal-content" style="max-width: 90vw; width: 680px; max-height: 85vh; display: flex; flex-direction: column; background: #121827; border: 1.5px solid rgba(255,255,255,0.15); border-radius: 14px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); overflow: hidden;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.25);">
+        <h3 id="major-modal-guest-name" style="margin: 0; font-size: 1.2rem; color: #fff; font-weight: 800; letter-spacing: 0.5px;"></h3>
+        <button id="btn-close-major-modal" class="btn-close" style="background:transparent; border:none; color:var(--text-muted); font-size:1.8rem; cursor:pointer; line-height: 1;" title="Close">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 16px 20px; overflow-y: auto; flex: 1;">
+        <div id="major-modal-stats" style="display: flex; gap: 10px; margin-bottom: 16px; justify-content: space-between;">
+          <!-- Injected via JS: Total In, Total Out, Result -->
+        </div>
+        <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">
+          Today's Transactions
+        </div>
+        <div id="major-modal-entries-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Injected via JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EDIT MODAL -->
+  <div id="edit-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 style="margin:0; font-size:1.2rem; color:var(--text-primary);">EDIT ENTRY</h2>
+        <button id="btn-close-modal" class="btn-close" style="background:transparent; border:none; color:var(--text-muted); font-size:1.5rem; cursor:pointer;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:20px;">
+        <form id="edit-entry-form" class="horizontal-form" style="flex-direction: column; align-items: stretch; gap: 15px;">
+          <div class="form-group">
+            <label>Date & Time</label>
+            <div class="input-wrapper">
+              <input type="datetime-local" id="edit-datetime" required style="width:100%; box-sizing:border-box;">
+            </div>
+          </div>
+          
+          <!-- Hidden CD and Cashier (Removed from view) -->
+          <input type="hidden" id="edit-cd" value="CD-01">
+          <input type="hidden" id="edit-cashier" value="-">
+
+          <div style="display: flex; gap: 15px;">
+            <div class="form-group flex-1">
+              <label>Type</label>
+              <div class="input-wrapper">
+                <input type="text" id="edit-type" required style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label>Amount</label>
+              <div class="input-wrapper">
+                <input type="number" id="edit-amount" step="0.01" required style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 15px;">
+            <div class="form-group flex-1">
+              <label>Guest Name</label>
+              <div class="input-wrapper">
+                <input type="text" id="edit-guestname" required style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label>SURV ID</label>
+              <div class="input-wrapper">
+                <input type="text" id="edit-surv" style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Card / M Info</label>
+            <div class="input-wrapper">
+              <input type="text" id="edit-card" style="width:100%; box-sizing:border-box;">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Other Info</label>
+            <div class="input-wrapper">
+              <input type="text" id="edit-otherinfo" style="width:100%; box-sizing:border-box;">
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+            <button type="button" id="btn-cancel-edit-modal" class="btn-secondary" style="padding:8px 16px; display:inline-flex; align-items:center; gap:6px;">
+              <i data-lucide="x" style="width:15px;height:15px;"></i>
+              <span>Cancel</span>
+            </button>
+            <button type="submit" class="btn-primary" style="padding:8px 16px; display:inline-flex; align-items:center; gap:6px;">
+              <i data-lucide="check" style="width:15px;height:15px;"></i>
+              <span>UPDATE ENTRY</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: EDIT MEMBER -->
+  <div id="edit-member-modal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div class="modal-content" style="max-width: 460px; width: 92%; background: #111827; border: 1.5px solid rgba(255,255,255,0.18); border-radius: 14px; padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,0.85);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 1.2rem; font-weight: 800; color: #fff; letter-spacing: 1px;">EDIT MEMBER</h3>
+        <button id="btn-close-edit-member" style="background: transparent; border: none; color: #94a3b8; font-size: 1.8rem; cursor: pointer; line-height: 1;" title="Close">&times;</button>
+      </div>
+      <form id="edit-member-form">
+        <div style="margin-bottom: 14px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #94a3b8; margin-bottom: 5px; letter-spacing: 0.5px;">USER ID</label>
+          <input type="text" id="edit-member-id" readonly style="width: 100%; box-sizing: border-box; padding: 10px 14px; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.15); color: #60a5fa; border-radius: 8px; font-weight: 800; font-size: 0.95rem;" />
+        </div>
+        <div style="margin-bottom: 16px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #94a3b8; margin-bottom: 5px; letter-spacing: 0.5px;">PASSWORD</label>
+          <input type="text" id="edit-member-pass" required style="width: 100%; box-sizing: border-box; padding: 10px 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); color: #fff; border-radius: 8px; font-weight: 700; font-size: 0.95rem;" />
+        </div>
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #94a3b8; margin-bottom: 5px; letter-spacing: 0.5px;">ROLE</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <button type="button" id="edit-role-officer" class="admin-role-btn active" style="height: 38px;">OFFICER</button>
+            <button type="button" id="edit-role-supervisor" class="admin-role-btn" style="height: 38px;">SUPERVISOR</button>
+          </div>
+          <input type="hidden" id="edit-member-role" value="officer" />
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" class="btn-primary" style="flex: 1; padding: 10px 16px; font-weight: 800; justify-content: center; display: flex; align-items: center; gap: 8px; font-size: 0.9rem;">
+            <i data-lucide="check" style="width: 16px; height: 16px;"></i> SAVE CHANGES
+          </button>
+          <button type="button" id="btn-cancel-edit-member" style="padding: 10px 18px; background: rgba(255,255,255,0.1); color: #fff; border: none; border-radius: 8px; font-weight: 700; cursor: pointer;">CANCEL</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- NEW DAY MODAL -->
+  <div id="new-day-modal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 10000;">
+    <div class="modal-content" style="max-width: 400px; padding: 30px; text-align: center; background: var(--card-bg); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+      <h2 style="margin-top: 0; margin-bottom: 15px; font-size: 1.5rem;">Select New Date</h2>
+      <p style="color: var(--text-muted); margin-bottom: 20px; font-size: 0.9rem;">Choose the date to advance to. Previous entries will be archived and exported to Excel.</p>
+      <input type="date" id="new-day-date-input" style="width: 100%; box-sizing: border-box; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: white; font-size: 16px; margin-bottom: 25px;">
+      <div style="display: flex; gap: 15px; justify-content: center;">
+        <button id="btn-cancel-new-day" class="btn-secondary" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.1); color: white; border: none; border-radius: 8px; cursor: pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <i data-lucide="x" style="width:16px;height:16px;"></i>
+          <span>Cancel</span>
+        </button>
+        <button id="btn-confirm-new-day" class="btn-primary" style="flex: 1; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+          <i data-lucide="calendar-check" style="width:16px;height:16px;"></i>
+          <span>Confirm Change</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WARNING MODAL: Barred Guest Match -->
+  <div id="barred-warning-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+    <div class="modal-content" style="max-width: 90%; width: 500px; padding: 0; background: var(--bg-color); border: 2px solid var(--danger); box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);">
+      <div class="modal-header" style="background: rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding: 15px 20px; text-align: center;">
+        <h2 style="margin: 0; color: var(--danger); display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <i data-lucide="alert-triangle" style="width: 28px; height: 28px;"></i> WARNING
+        </h2>
+      </div>
+      <div class="modal-body" style="padding: 25px; text-align: center;">
+        <h3 style="margin-top: 0; color: white;" id="barred-warning-name">GUEST NAME</h3>
+        <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 20px;">This guest is on the <strong style="color: var(--danger);">Barred List</strong>.</p>
+        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); text-align: left; margin-bottom: 20px;">
+          <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 4px;">REASON</div>
+          <div style="color: white; font-weight: bold;" id="barred-warning-reason">...</div>
+        </div>
+        <button id="btn-close-barred-warning" class="btn-primary" style="width: 100%; padding: 12px; font-weight: bold; background: var(--danger); display:flex; align-items:center; justify-content:center; gap:8px;">
+          <i data-lucide="shield-alert" style="width:18px;height:18px;"></i>
+          <span>ACKNOWLEDGE</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=39"></script>
+
+  <!-- DIRECT PHOTO UPLOADS -->
+  <input type="file" id="direct-photo-barred" accept="image/*" style="display:none;" />
+  <input type="file" id="direct-photo-staff" accept="image/*" style="display:none;" />
+</body>
+</html>
