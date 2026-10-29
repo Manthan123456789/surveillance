@@ -134,6 +134,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   let globalBarredList = [];
   let summaryChart = null;
 
+  // Helper: Strictly verify if active user is administrator
+  function isAdmin() {
+    if (!currentUser) return false;
+    const uid = String(currentUser.id || currentUser.name || '').toLowerCase().trim();
+    const urole = String(currentUser.role || '').toLowerCase().trim();
+    return uid === 'admin' || urole === 'admin';
+  }
+
   // Initialize Lucide Icons
   lucide.createIcons();
 
@@ -611,7 +619,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Restore last active panel (AFTER REFRESH SAME PAGE)
         const lastPanel = sessionStorage.getItem('current_panel') || 'home';
-        if (lastPanel === 'admin') showAdminPanel();
+        if (lastPanel === 'admin') {
+          if (isAdmin()) showAdminPanel();
+          else showHomePanel();
+        }
         else if (lastPanel === 'major') showMajorPanel();
         else if (lastPanel === 'all_entries') showAllEntriesPanel();
         else if (lastPanel === 'barred') showBarredPanel();
@@ -950,6 +961,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function showAdminPanel() {
+    if (!isAdmin()) {
+      alert('Access restricted: Only Admin can access Add Member / user management.');
+      showHomePanel();
+      return;
+    }
+
     sessionStorage.setItem('current_panel', 'admin');
     hideAllPanels();
 
@@ -3592,15 +3609,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }, 30000);
 
-  // Toggle the Admin Users button visibility based on active user
+  // Toggle the Admin Users button visibility based on active user (Admin only)
   function toggleAdminPanel() {
     if (btnAdminUsers) {
-      btnAdminUsers.style.display = currentUser ? 'flex' : 'none';
+      if (isAdmin()) {
+        btnAdminUsers.style.setProperty('display', 'flex', 'important');
+      } else {
+        btnAdminUsers.style.setProperty('display', 'none', 'important');
+      }
     }
   }
 
   // Admin Account Management: Fetch all accounts
   async function fetchUsers() {
+    if (!isAdmin()) return;
     try {
       const response = await fetch('/api/users?requester=admin');
       if (!response.ok) {
@@ -3807,6 +3829,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (addUserForm) {
     addUserForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!isAdmin()) {
+        alert('Unauthorized: Only Admin can add members.');
+        return;
+      }
       const username = newUsernameInput.value.trim().toLowerCase();
       const password = newPasswordInput.value;
       const roleElement = document.getElementById('new-user-role');

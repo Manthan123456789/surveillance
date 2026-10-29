@@ -531,8 +531,8 @@ const server = http.createServer((req, res) => {
 
   // GET /api/users (Admin only)
   if (pathname === '/api/users' && req.method === 'GET') {
-    const requester = parsedUrl.searchParams.get('requester');
-    if (requester !== 'admin' && requester !== 'supervisor') {
+    const requester = (parsedUrl.searchParams.get('requester') || '').toLowerCase().trim();
+    if (requester !== 'admin') {
       res.writeHead(403, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Forbidden. Admin access required.' }));
       return;
@@ -557,9 +557,10 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const { adminUser, newUsername, newPassword, newRole } = JSON.parse(body);
-        if (adminUser !== 'admin' && adminUser !== 'supervisor') {
+        const normalizedAdmin = (adminUser || '').toLowerCase().trim();
+        if (normalizedAdmin !== 'admin') {
           res.writeHead(403, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Forbidden. Admin authorization required.' }));
+          res.end(JSON.stringify({ error: 'Forbidden. Only admin can add members.' }));
           return;
         }
 
@@ -602,12 +603,12 @@ const server = http.createServer((req, res) => {
 
   // DELETE /api/users (Admin only - delete credentials)
   if (pathname === '/api/users' && req.method === 'DELETE') {
-    const adminUser = parsedUrl.searchParams.get('adminUser');
+    const adminUser = (parsedUrl.searchParams.get('adminUser') || '').toLowerCase().trim();
     const usernameToDelete = parsedUrl.searchParams.get('username');
 
-    if (adminUser !== 'admin' && adminUser !== 'supervisor') {
+    if (adminUser !== 'admin') {
       res.writeHead(403, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ error: 'Forbidden. Admin authorization required.' }));
+      res.end(JSON.stringify({ error: 'Forbidden. Only admin can delete accounts.' }));
       return;
     }
 
@@ -640,16 +641,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // PUT /api/users (Admin/Supervisor - update credentials)
+  // PUT /api/users (Admin only - update credentials)
   if (pathname === '/api/users' && req.method === 'PUT') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
       try {
         const { adminUser, username, password, role } = JSON.parse(body);
-        if (adminUser !== 'admin' && adminUser !== 'supervisor') {
+        const normalizedAdmin = (adminUser || '').toLowerCase().trim();
+        if (normalizedAdmin !== 'admin') {
           res.writeHead(403, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Forbidden. Admin authorization required.' }));
+          res.end(JSON.stringify({ error: 'Forbidden. Only admin can modify accounts.' }));
           return;
         }
 
