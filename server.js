@@ -1396,12 +1396,15 @@ const server = http.createServer((req, res) => {
   
   // Clean request path
   const sanitizedPath = pathname === '/' ? '/index.html' : pathname;
-  let filePath = path.join(__dirname, 'public', sanitizedPath);
-  if (!fs.existsSync(filePath)) {
-    const rootFilePath = path.join(__dirname, sanitizedPath);
-    if (fs.existsSync(rootFilePath)) {
-      filePath = rootFilePath;
-    }
+  const rootFilePath = path.join(__dirname, sanitizedPath);
+  const publicFilePath = path.join(__dirname, 'public', sanitizedPath);
+  
+  // Prefer root file if present (since direct GitHub uploads land at root), otherwise fallback to public/
+  let filePath = publicFilePath;
+  if (fs.existsSync(rootFilePath)) {
+    filePath = rootFilePath;
+  } else if (fs.existsSync(publicFilePath)) {
+    filePath = publicFilePath;
   }
   
   // Security: prevent directory traversal
@@ -1423,17 +1426,20 @@ const server = http.createServer((req, res) => {
   fs.readFile(filePath, (err, content) => {
     if (err) {
       if (err.code === 'ENOENT') {
-        // fallback to index.html for client-side routing
-        let indexFile = path.join(__dirname, 'public', 'index.html');
+        // fallback to index.html for client-side routing (prefer root over public)
+        let indexFile = path.join(__dirname, 'index.html');
         if (!fs.existsSync(indexFile)) {
-          indexFile = path.join(__dirname, 'index.html');
+          indexFile = path.join(__dirname, 'public', 'index.html');
         }
         fs.readFile(indexFile, (indexErr, indexContent) => {
           if (indexErr) {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Internal Server Error');
           } else {
-            res.writeHead(200, { 'Content-Type': 'text/html' });
+            res.writeHead(200, {
+              'Content-Type': 'text/html',
+              'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+            });
             res.end(indexContent, 'utf-8');
           }
         });
