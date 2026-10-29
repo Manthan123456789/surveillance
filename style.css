@@ -3546,10 +3546,27 @@ textarea { text-transform: uppercase; }
 .btn-new-day:active {
   transform: translateY(0);
 }
-@media (max-width: 600px) {
-  .btn-new-day {
-    padding: 5px 8px !important;
-    font-size: 0.75rem !important;
-  }
+
+/* Icon-Only Buttons Universal Styling */
+.btn-toggle-view,
+.btn-new-day,
+.all-entries-toggle-btn,
+.all-entries-export-btn,
+.all-entries-date-btn,
+.btn-barred-tool {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+.btn-toggle-view:hover,
+.btn-new-day:hover,
+.all-entries-toggle-btn:hover,
+.all-entries-export-btn:hover,
+.all-entries-date-btn:hover,
+.btn-barred-tool:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
 }
 
