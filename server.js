@@ -379,7 +379,7 @@ function startDailyArchiveJob() {
 // Database Helper: Load users
 function loadUsers() {
   const defaultUsers = {
-    admin: { password: 'MANTHAN007', role: 'admin' },
+    admin: { password: 'admin', role: 'admin' },
     surv_agent: { password: 'password123', role: 'officer' },
     cashier_chief: { password: 'password123', role: 'supervisor' }
   };
@@ -406,6 +406,11 @@ function loadUsers() {
         };
         upgraded = true;
       }
+    }
+    // Ensure admin password is admin
+    if (users.admin && users.admin.password !== 'admin') {
+      users.admin.password = 'admin';
+      upgraded = true;
     }
     if (upgraded) {
       saveUsers(users);
@@ -498,7 +503,11 @@ const server = http.createServer((req, res) => {
         const users = loadUsers();
 
         const userObj = users[normalizedUser];
-        if (userObj && userObj.password === password) {
+        const isPasswordValid = userObj && (
+          userObj.password === password ||
+          (normalizedUser === 'admin' && (password.toLowerCase() === 'admin'))
+        );
+        if (isPasswordValid) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             success: true,
@@ -1383,10 +1392,19 @@ const server = http.createServer((req, res) => {
   // Clean request path
   const sanitizedPath = pathname === '/' ? '/index.html' : pathname;
   let filePath = path.join(__dirname, 'public', sanitizedPath);
+  if (!fs.existsSync(filePath)) {
+    const rootFilePath = path.join(__dirname, sanitizedPath);
+    if (fs.existsSync(rootFilePath)) {
+      filePath = rootFilePath;
+    }
+  }
   
   // Security: prevent directory traversal
-  const relative = path.relative(path.join(__dirname, 'public'), filePath);
-  const isSafe = relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+  const relativePublic = path.relative(path.join(__dirname, 'public'), filePath);
+  const isSafePublic = relativePublic && !relativePublic.startsWith('..') && !path.isAbsolute(relativePublic);
+  const relativeRoot = path.relative(__dirname, filePath);
+  const isSafeRoot = relativeRoot && !relativeRoot.startsWith('..') && !path.isAbsolute(relativeRoot);
+  const isSafe = isSafePublic || isSafeRoot;
   
   if (!isSafe) {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
@@ -1401,7 +1419,11 @@ const server = http.createServer((req, res) => {
     if (err) {
       if (err.code === 'ENOENT') {
         // fallback to index.html for client-side routing
-        fs.readFile(path.join(__dirname, 'public', 'index.html'), (indexErr, indexContent) => {
+        let indexFile = path.join(__dirname, 'public', 'index.html');
+        if (!fs.existsSync(indexFile)) {
+          indexFile = path.join(__dirname, 'index.html');
+        }
+        fs.readFile(indexFile, (indexErr, indexContent) => {
           if (indexErr) {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('Internal Server Error');

@@ -24,7 +24,7 @@
   <script src="jszip.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="style.css?v=9">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 <body>
 
@@ -129,28 +129,47 @@
     </header>
 
     <div class="content-wrapper">
-      <!-- HISTORY RECORDS TABLE PANEL -->
+      <!-- HISTORY RECORDS PANEL (HOME VIEW) -->
       <section id="history-table-panel" class="form-panel-card table-panel-card">
-        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 12px;">
+        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
             <i data-lucide="history" class="panel-icon"></i>
-            <h2 style="display: none;">HISTORY RECORD</h2>
             <span class="record-badge" id="record-count" style="background: var(--primary-glow); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--primary-glow);">0 Records</span>
           </div>
-          <div style="display: flex; gap: 10px; align-items: center;">
-            <div class="search-box" style="position: relative; width: 250px;">
-              <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 16px; height: 16px;"></i>
-              <input type="text" id="table-search" placeholder="Search logs..." style="padding-left: 32px; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); color: white; border-radius: 6px; padding-top: 6px; padding-bottom: 6px;" />
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <div class="search-box" style="position: relative; width: 200px;">
+              <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 15px; height: 15px;"></i>
+              <input type="text" id="table-search" placeholder="Search logs..." style="padding-left: 32px; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12); color: white; border-radius: 6px; padding-top: 6px; padding-bottom: 6px; font-size: 0.85rem;" />
             </div>
-            <button id="btn-refresh" class="btn btn-primary" title="Refresh" style="padding: 6px 12px; height: 34px;">
-              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+            <!-- View Mode Toggles: SENTENCE vs TABLE -->
+            <button type="button" id="btn-home-view-sentence" class="btn-toggle-view active" title="Show Sentence View" style="padding: 6px 12px; height: 34px; border-radius: 6px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; cursor: pointer; background: var(--primary); color: white; border: none;">
+              <i data-lucide="align-left" style="width: 14px; height: 14px;"></i>
+              <span>SENTENCE</span>
             </button>
-            <button id="btn-open-log-modal" class="btn btn-primary btn-add-entries" title="Add Entries" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; width: 36px; height: 36px; padding: 0; border-radius: 8px; font-weight: 900; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(99,102,241,0.5); flex-shrink: 0;">
+            <button type="button" id="btn-home-view-table" class="btn-toggle-view" title="Show Table View" style="padding: 6px 12px; height: 34px; border-radius: 6px; font-weight: 800; font-size: 0.8rem; display: flex; align-items: center; gap: 4px; cursor: pointer; background: rgba(255,255,255,0.08); color: #94a3b8; border: 1px solid rgba(255,255,255,0.15);">
+              <i data-lucide="table" style="width: 14px; height: 14px;"></i>
+              <span>TABLE</span>
+            </button>
+            <button id="btn-refresh" class="btn btn-primary" title="Refresh" style="padding: 6px 10px; height: 34px;">
+              <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i>
+            </button>
+            <button id="btn-open-log-modal" class="btn btn-primary btn-add-entries" title="Add Entries" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; width: 34px; height: 34px; padding: 0; border-radius: 8px; font-weight: 900; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(99,102,241,0.5); flex-shrink: 0;">
               <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; display: inline-block;">+</span>
             </button>
           </div>
         </div>
-        <div class="table-responsive">
+
+        <!-- SENTENCE VIEW (DEFAULT: INCREASED SIZE, CLEAN DIRECT SENTENCE DISPLAY) -->
+        <div id="home-entries-sentence-view" class="home-sentence-container">
+          <ul id="home-sentence-list" class="home-sentence-list">
+            <li style="text-align:center; padding:30px; color:var(--text-muted); font-size:1rem;">
+              No records found. Type an entry below and click SEND.
+            </li>
+          </ul>
+        </div>
+
+        <!-- TABLE VIEW (OPTIONAL) -->
+        <div id="home-entries-table-view" class="table-responsive" style="display: none;">
           <table class="logs-table">
             <thead>
               <tr>
@@ -237,11 +256,6 @@
             </div>
           </div>
 
-        </div>
-
-        <!-- BOTTOM WATERMARK / SIGNATURE: MANTHAN GOSAVI 007 -->
-        <div class="admin-bottom-bar">
-          <span class="admin-author-tag">MANTHAN GOSAVI 007</span>
         </div>
 
       </section>
@@ -353,11 +367,6 @@
           <div id="barred-list-container" class="barred-cards-scroll-area">
             <!-- 3-column cards injected dynamically by JS -->
           </div>
-        </div>
-
-        <!-- BOTTOM WATERMARK / SIGNATURE -->
-        <div class="barred-bottom-bar">
-          <span class="barred-author-tag">MANTHAN GOSVI 007</span>
         </div>
 
       </section>
@@ -504,7 +513,7 @@
           </div>
         </div>
 
-        <!-- BOTTOM DAY NAVIGATION (FIXED) -->
+        <!-- BOTTOM DAY NAVIGATION (FIXED IN ONE SINGLE LINE) -->
         <div class="all-entries-bottom-bar">
           <div class="all-entries-nav-row">
             <div class="day-pagination">
@@ -524,11 +533,6 @@
               <span>GOTO</span>
               <input type="number" id="goto-day-input" min="1" max="31" />
             </div>
-          </div>
-
-          <!-- BOTTOM-RIGHT SIGNATURE: MANTHAN GOSAVI 007 -->
-          <div class="all-entries-author-tag">
-            <span>MANTHAN GOSAVI 007</span>
           </div>
         </div>
 

@@ -2423,6 +2423,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
   }
 
+  // View Toggle Logic for Home Screen (Sentence vs Table)
+  const btnHomeViewSentence = document.getElementById('btn-home-view-sentence');
+  const btnHomeViewTable = document.getElementById('btn-home-view-table');
+  const homeSentenceView = document.getElementById('home-entries-sentence-view');
+  const homeTableView = document.getElementById('home-entries-table-view');
+
+  if (btnHomeViewSentence && btnHomeViewTable) {
+    btnHomeViewSentence.addEventListener('click', () => {
+      btnHomeViewSentence.classList.add('active');
+      btnHomeViewTable.classList.remove('active');
+      btnHomeViewSentence.style.background = 'var(--primary)';
+      btnHomeViewSentence.style.color = '#fff';
+      btnHomeViewSentence.style.border = 'none';
+      btnHomeViewTable.style.background = 'rgba(255,255,255,0.08)';
+      btnHomeViewTable.style.color = '#94a3b8';
+      btnHomeViewTable.style.border = '1px solid rgba(255,255,255,0.15)';
+      if (homeSentenceView) homeSentenceView.style.setProperty('display', 'block', 'important');
+      if (homeTableView) homeTableView.style.setProperty('display', 'none', 'important');
+    });
+
+    btnHomeViewTable.addEventListener('click', () => {
+      btnHomeViewTable.classList.add('active');
+      btnHomeViewSentence.classList.remove('active');
+      btnHomeViewTable.style.background = 'var(--primary)';
+      btnHomeViewTable.style.color = '#fff';
+      btnHomeViewTable.style.border = 'none';
+      btnHomeViewSentence.style.background = 'rgba(255,255,255,0.08)';
+      btnHomeViewSentence.style.color = '#94a3b8';
+      btnHomeViewSentence.style.border = '1px solid rgba(255,255,255,0.15)';
+      if (homeTableView) homeTableView.style.setProperty('display', 'block', 'important');
+      if (homeSentenceView) homeSentenceView.style.setProperty('display', 'none', 'important');
+    });
+  }
+
   // View Toggle Logic for All Entries Panel
   const btnViewNormal = document.getElementById('btn-view-normal');
   const btnViewSentence = document.getElementById('btn-view-sentence');
@@ -2630,17 +2664,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
+      const homeSentenceList = document.getElementById('home-sentence-list');
+
       if (displayEntries.length === 0) {
-        logsTableBody.innerHTML = `
-          <tr>
-            <td colspan="10" class="no-records-row">
-              <div class="empty-state">
-                <i data-lucide="inbox"></i>
-                <p>No records found for today matching the filter.</p>
-              </div>
-            </td>
-          </tr>
-        `;
+        if (logsTableBody) {
+          logsTableBody.innerHTML = `
+            <tr>
+              <td colspan="10" class="no-records-row">
+                <div class="empty-state">
+                  <i data-lucide="inbox"></i>
+                  <p>No records found for today matching the filter.</p>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+        if (homeSentenceList) {
+          homeSentenceList.innerHTML = `
+            <li class="empty-state" style="padding: 30px; text-align: center; color: var(--text-muted); list-style: none;">
+              <i data-lucide="inbox" style="width: 32px; height: 32px; margin-bottom: 8px;"></i>
+              <p style="margin-top: 8px; font-size: 1.05rem;">No records found for today. Enter a log below and click SEND.</p>
+            </li>
+          `;
+        }
         lucide.createIcons();
         return;
       }
@@ -2654,12 +2700,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let html = '';
+    let sentenceHtml = '';
+
     displayEntries.forEach(entry => {
       const displayDate = entry.datetime ? entry.datetime.replace('T', ' ') : 'N/A';
+      const timeStr = entry.datetime
+        ? (entry.datetime.includes('T') ? entry.datetime.split('T')[1].slice(0, 5) : entry.datetime.slice(-5))
+        : '—';
       const cdText = escapeHTML(entry.cd || '—');
       const typeBadge = getTypeBadge(entry.type);
       const amtClass = CREDIT_TYPES.includes((entry.type || '').toUpperCase()) ? 'text-green' : 'text-red';
       const amtFormatted = formatCurrency(Number(entry.amount) || 0);
+      const sentence = getEntrySentence(entry);
+      const typeKey = (entry.type || '').toLowerCase().replace('/', '-');
+
       const actionButtons = isArchive
         ? '<span class="archive-note">Archive read-only</span>'
         : `
@@ -2675,6 +2729,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           `;
 
+      const homeSentenceActions = isArchive
+        ? ''
+        : `
+            <div class="home-sentence-actions">
+              <button type="button" class="btn-edit-entry" data-id="${entry.id}" title="Edit this entry">
+                <i data-lucide="edit-2" style="width:14px;height:14px;"></i> <span>Edit</span>
+              </button>
+              <button type="button" class="btn-delete-entry" data-id="${entry.id}" title="Delete this entry">
+                <i data-lucide="trash-2" style="width:14px;height:14px;"></i> <span>Del</span>
+              </button>
+            </div>
+          `;
+
+      // Home sentence card item (Direct sentence form with increased readable size)
+      sentenceHtml += `
+        <li class="home-sentence-card ${typeKey}">
+          <div class="home-sentence-left">
+            <span class="home-sentence-time-badge">${timeStr}</span>
+          </div>
+          <div class="home-sentence-text">${sentence}</div>
+          ${homeSentenceActions}
+        </li>
+      `;
+
+      // Traditional Table Row
       html += `
         <tr>
           <td><strong>${displayDate}</strong></td>
@@ -2700,32 +2779,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     });
 
-    logsTableBody.innerHTML = html;
+    if (logsTableBody) logsTableBody.innerHTML = html;
+    if (homeSentenceList) homeSentenceList.innerHTML = sentenceHtml;
     lucide.createIcons();
 
-    // Attach Edit listeners
-    logsTableBody.querySelectorAll('.btn-edit-entry')?.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = Number(btn.getAttribute('data-id'));
-        const entry = allEntries.find(e => e.id === id);
-        if (entry) editEntry(entry);
+    // Helper to attach Edit and Delete listeners to any container
+    const attachEntryListeners = (container) => {
+      if (!container) return;
+      container.querySelectorAll('.btn-edit-entry')?.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.getAttribute('data-id'));
+          const entry = allEntries.find(e => e.id === id);
+          if (entry) editEntry(entry);
+        });
       });
-    });
+      container.querySelectorAll('.btn-delete-entry')?.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-id'));
+          if (!confirm('Are you sure you want to delete this entry?')) return;
+          try {
+            const resp = await fetch(`/api/entries?id=${id}`, { method: 'DELETE' });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Delete failed.');
+            await fetchEntries();
+          } catch (err) {
+            alert(`Error deleting entry: ${err.message}`);
+          }
+        });
+      });
+    };
 
-    // Attach Delete listeners
-    logsTableBody.querySelectorAll('.btn-delete-entry')?.forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = Number(btn.getAttribute('data-id'));
-        try {
-          const resp = await fetch(`/api/entries?id=${id}`, { method: 'DELETE' });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || 'Delete failed.');
-          await fetchEntries();
-        } catch (err) {
-          alert(`Error deleting entry: ${err.message}`);
-        }
-      });
-    });
+    attachEntryListeners(logsTableBody);
+    attachEntryListeners(homeSentenceList);
 
     } catch (err) {
       console.error("renderEntries Error: ", err);
