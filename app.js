@@ -119,6 +119,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tableSearchInput = document.getElementById('table-search');
   const btnRefresh = document.getElementById('btn-refresh');
 
+  // DOM Elements - New Gaming Day / Change Date
+  const btnStartNewDay = document.getElementById('btn-start-new-day');
+  const newDayModal = document.getElementById('new-day-modal');
+  const newDayDateInput = document.getElementById('new-day-date-input');
+  const btnCancelNewDay = document.getElementById('btn-cancel-new-day');
+  const btnConfirmNewDay = document.getElementById('btn-confirm-new-day');
+  const homeGamingDateDisplay = document.getElementById('home-gaming-date-display');
+  const modalCurrentDateDisplay = document.getElementById('modal-current-date-display');
+
   // Local state cache
   let allEntries = [];
   let currentUser = null;
@@ -137,6 +146,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (data.serverTime) {
         const rtt = Date.now() - startFetch;
         timeOffset = data.serverTime + (rtt / 2) - Date.now();
+      }
+      if (data.currentBusinessDate) {
+        currentBusinessDateStr = data.currentBusinessDate;
+        if (homeGamingDateDisplay) homeGamingDateDisplay.textContent = currentBusinessDateStr;
       }
     }
   } catch (e) {
@@ -195,18 +208,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Helper: Check if an entry belongs to today's business session.
-  // Accepts entries whose datetime date matches the current business date.
-  // Also accepts entries saved with the physical calendar date when the business date
-  // is different (handles timing bug where form was submitted before business date loaded).
   function isEntryForToday(e) {
-    if (!e || !e.datetime) return false;
-    const todayBus = getBusinessDate();           // returns currentBusinessDateStr when set
-    const eDate = getBusinessDate(e.datetime);    // date part of stored datetime
-    if (eDate === todayBus) return true;
-    // Fallback: include entries from the physical today when business date differs
-    const physNow = getServerTimeDate();
-    const physToday = `${physNow.getFullYear()}-${String(physNow.getMonth()+1).padStart(2,'0')}-${String(physNow.getDate()).padStart(2,'0')}`;
-    return todayBus !== physToday && eDate === physToday;
+    if (!e) return false;
+    // Archived entries belong to past gaming days, exclude from today's home screen
+    if (e.archived === true || e.archived === 'true') return false;
+
+    const todayBus = currentBusinessDateStr || getBusinessDate();
+    const eDate = e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '');
+    return eDate === todayBus;
   }
 
   // Helper: Format amount as Indian Rupee (INR) without decimal zeroes
@@ -754,6 +763,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const gamingDateEl = document.getElementById('all-entries-gaming-date');
         if (gamingDateEl) {
           gamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
+        }
+        if (homeGamingDateDisplay) {
+          homeGamingDateDisplay.textContent = currentBusinessDateStr;
         }
         // Refresh the hidden datetime input so future entries use the correct business date
         if (inputDateTime) inputDateTime.value = getLocalTimeISOString();
@@ -2862,6 +2874,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const entryPayload = {
       datetime,
+      businessDate: currentBusinessDateStr || getBusinessDate(),
       cd: cd || 'CD-01',
       cashier: cashier || '-',
       type,
@@ -2911,6 +2924,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const cdFinal = cd || parsed.cd || 'CD-01';
             const quickPayload = {
               datetime: getLocalTimeISOString(),
+              businessDate: currentBusinessDateStr || getBusinessDate(),
               cd: cdFinal,
               cashier: cashier || '',
               type: parsed.type,
@@ -3412,6 +3426,126 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnRefresh.addEventListener('click', () => {
       tableSearchInput.value = '';
       fetchEntries();
+    });
+  }
+
+  // ==========================================================================
+  // START NEW GAMING DAY (CHANGE DATE)
+  // ==========================================================================
+  if (btnStartNewDay) {
+    btnStartNewDay.addEventListener('click', () => {
+      const current = currentBusinessDateStr || getBusinessDate();
+      if (modalCurrentDateDisplay) {
+        modalCurrentDateDisplay.textContent = current || 'Not Set';
+      }
+
+      // Pre-fill with next day
+      if (newDayDateInput) {
+        if (current && current.includes('-')) {
+          const parts = current.split('-').map(Number);
+          const nextDate = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+          const ny = nextDate.getFullYear();
+          const nm = String(nextDate.getMonth() + 1).padStart(2, '0');
+          const nd = String(nextDate.getDate()).padStart(2, '0');
+          newDayDateInput.value = `${ny}-${nm}-${nd}`;
+        } else {
+          newDayDateInput.value = getLocalTimeISOString().split('T')[0];
+        }
+      }
+
+      if (newDayModal) {
+        newDayModal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  }
+
+  // Cancel / NO button -> continue same gaming day
+  if (btnCancelNewDay) {
+    btnCancelNewDay.addEventListener('click', () => {
+      if (newDayModal) {
+        newDayModal.style.display = 'none';
+      }
+    });
+  }
+
+  // Confirm / YES button -> start new gaming day
+  if (btnConfirmNewDay) {
+    btnConfirmNewDay.addEventListener('click', async () => {
+      const newDate = newDayDateInput ? newDayDateInput.value : '';
+      if (!newDate) {
+        alert('Please select a valid new gaming date.');
+        return;
+      }
+
+      const origText = btnConfirmNewDay.innerHTML;
+      btnConfirmNewDay.disabled = true;
+      btnConfirmNewDay.innerHTML = '<span>Starting...</span>';
+
+      try {
+        const response = await fetch('/api/newday', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newDate })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to start new gaming day.');
+        }
+
+        // Advance current business date
+        currentBusinessDateStr = result.newDate || newDate;
+        if (homeGamingDateDisplay) {
+          homeGamingDateDisplay.textContent = currentBusinessDateStr;
+        }
+        const allGamingDateEl = document.getElementById('all-entries-gaming-date');
+        if (allGamingDateEl) {
+          allGamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
+        }
+
+        // Update active day for All Entries navigation
+        const dayNum = Number(currentBusinessDateStr.split('-')[2]);
+        if (!isNaN(dayNum)) {
+          activeAllEntriesDay = dayNum;
+          if (gotoDayInput) gotoDayInput.value = activeAllEntriesDay;
+        }
+        if (allEntriesDatePicker) {
+          allEntriesDatePicker.value = currentBusinessDateStr;
+        }
+
+        // Update datetime input
+        if (inputDateTime) {
+          inputDateTime.value = getLocalTimeISOString();
+        }
+
+        // Close modal
+        if (newDayModal) {
+          newDayModal.style.display = 'none';
+        }
+
+        // Re-fetch all entries from backend (previous ones will now be archived)
+        await fetchEntries();
+
+        // Sync day pagination UI
+        renderDayPagination();
+
+        alert(`New Gaming Day started: ${currentBusinessDateStr}\nPrevious entries have been archived.`);
+      } catch (err) {
+        console.error('Error starting new gaming day:', err);
+        alert(`Failed to start new gaming day: ${err.message}`);
+      } finally {
+        btnConfirmNewDay.disabled = false;
+        btnConfirmNewDay.innerHTML = origText;
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  }
+
+  if (newDayModal) {
+    newDayModal.addEventListener('click', (e) => {
+      if (e.target === newDayModal) {
+        newDayModal.style.display = 'none';
+      }
     });
   }
 

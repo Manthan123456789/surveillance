@@ -692,7 +692,7 @@ const server = http.createServer((req, res) => {
         }
 
         const entryId = Date.now();
-        const entryData = { id: entryId, ...data, modifiedAt: entryId };
+        const entryData = { id: entryId, businessDate: data.businessDate || currentBusinessDate, ...data, modifiedAt: entryId };
 
         const filename = `entry_${entryId}.json`;
         const filePath = path.join(ENTRIES_DIR, filename);
@@ -1113,7 +1113,12 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        const updatedEntry = { ...data, id: Number(entryId), modifiedAt: Date.now() };
+        let existingEntry = {};
+        try {
+          existingEntry = JSON.parse(fs.readFileSync(path.join(ENTRIES_DIR, targetFile), 'utf8'));
+        } catch (e) {}
+
+        const updatedEntry = { ...existingEntry, ...data, id: Number(entryId), modifiedAt: Date.now() };
         fs.writeFileSync(path.join(ENTRIES_DIR, targetFile), JSON.stringify(updatedEntry, null, 2), 'utf8');
 
         const barredGuest = checkIfGuestIsBarred(updatedEntry.guestname);
