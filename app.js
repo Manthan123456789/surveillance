@@ -594,17 +594,74 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.style.background = `linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95)), url('${wallpapers[index]}') center/cover fixed no-repeat`;
   }
 
+  // ==========================================================================
+  // INACTIVITY AUTO-LOGOUT (30 MINUTES)
+  // ==========================================================================
+  const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+  let lastActivityUpdate = 0;
+
+  function recordUserActivity() {
+    if (!currentUser) return;
+    const now = Date.now();
+    // Throttle writing to localStorage to once every 5 seconds
+    if (now - lastActivityUpdate > 5000) {
+      lastActivityUpdate = now;
+      localStorage.setItem('surv_last_activity', String(now));
+    }
+  }
+
+  function performLogout(reason) {
+    localStorage.removeItem('surv_session');
+    localStorage.removeItem('surv_last_activity');
+    sessionStorage.removeItem('current_panel');
+    currentUser = null;
+    allEntries = [];
+    applyUserWallpaper(null);
+    updateSurvFieldState();
+    hideAllPanels();
+    if (btnAdminUsers) btnAdminUsers.style.display = 'none';
+    if (btnSupervisorLog) btnSupervisorLog.style.display = 'none';
+
+    showView('login');
+    if (reason && loginErrorText && loginErrorContainer) {
+      loginErrorText.textContent = reason;
+      loginErrorContainer.style.display = 'flex';
+    }
+  }
+
+  // Listen for user interactions to refresh inactivity timer
+  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
+    window.addEventListener(evt, recordUserActivity, { passive: true });
+  });
+
+  // Check every 10 seconds if 30 minutes of inactivity has passed
+  setInterval(() => {
+    if (!currentUser) return;
+    const lastActive = Number(localStorage.getItem('surv_last_activity') || 0);
+    if (lastActive && (Date.now() - lastActive >= INACTIVITY_TIMEOUT_MS)) {
+      console.warn('[Session] User inactive for 30 minutes. Auto-logging out.');
+      performLogout('Logged out automatically due to 30 minutes of inactivity.');
+    }
+  }, 10000);
+
   // Verify and load active session
   function checkAuthSession() {
     const sessionData = localStorage.getItem('surv_session');
     if (sessionData) {
+      const lastActive = Number(localStorage.getItem('surv_last_activity') || 0);
+      if (lastActive && (Date.now() - lastActive >= INACTIVITY_TIMEOUT_MS)) {
+        performLogout('Session expired due to 30 minutes of inactivity.');
+        return;
+      }
+      localStorage.setItem('surv_last_activity', String(Date.now()));
+      lastActivityUpdate = Date.now();
+
       let parsedSession = null;
       try {
         parsedSession = JSON.parse(sessionData);
       } catch (err) {
         console.error('Failed to parse session data:', err);
-        localStorage.removeItem('surv_session');
-        showView('login');
+        performLogout();
         return;
       }
       
@@ -714,6 +771,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       // Save user to session
       currentUser = data.user;
       localStorage.setItem('surv_session', JSON.stringify(currentUser));
+      localStorage.setItem('surv_last_activity', String(Date.now()));
+      lastActivityUpdate = Date.now();
       
       // Update badge and field
       userBadgeId.textContent = currentUser.name;
@@ -745,17 +804,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Logout action
   if (btnLogout) btnLogout.addEventListener('click', () => {
-    localStorage.removeItem('surv_session');
-    sessionStorage.removeItem('current_panel');
-    currentUser = null;
-    allEntries = [];
-    applyUserWallpaper(null);
-    updateSurvFieldState();
-    hideAllPanels();
-    if (btnAdminUsers) btnAdminUsers.style.display = 'none';
-    if (btnSupervisorLog) btnSupervisorLog.style.display = 'none';
-
-    showView('login');
+    performLogout();
   });
 
   // ==========================================================================
@@ -4179,6 +4228,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === 'date-changed' && data.newDate) {
+          console.log('[SSE] Business date changed to:', data.newDate);
+          currentBusinessDateStr = data.newDate;
+          if (homeGamingDateDisplay) {
+            homeGamingDateDisplay.textContent = currentBusinessDateStr;
+          }
+          const allGamingDateEl = document.getElementById('all-entries-gaming-date');
+          if (allGamingDateEl) {
+            allGamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
+          }
+          const dayNum = Number(currentBusinessDateStr.split('-')[2]);
+          if (!isNaN(dayNum)) {
+            activeAllEntriesDay = dayNum;
+            if (gotoDayInput) gotoDayInput.value = activeAllEntriesDay;
+          }
+          if (allEntriesDatePicker) {
+            allEntriesDatePicker.value = currentBusinessDateStr;
+          }
+          fetchEntries().then(() => {
+            renderDayPagination();
+          });
+        }
+
         if (data.type === 'barred-match') {
           const now = Date.now();
           const guestKey = String(data.guestname || '').toLowerCase().trim();
