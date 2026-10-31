@@ -909,6 +909,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       wrapper.style.flex = '1 1 0';
     }
     
+    // Lock outer viewport so no outer page scroller ever appears
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overflowY = 'hidden';
     document.body.style.overflow = 'hidden';
     document.body.style.overflowY = 'hidden';
   }
@@ -920,6 +923,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(tableSearchInput) tableSearchInput.value = '';
 
     // Auto-fit 100% in one page with zero page scrolling (Telegram layout on mobile & desktop)
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overflowY = 'hidden';
     document.body.style.overflow = 'hidden';
     document.body.style.overflowY = 'hidden';
     const wrapper = document.querySelector('.content-wrapper');

@@ -3312,52 +3312,65 @@ textarea { text-transform: uppercase; }
    ========================================================================== */
 @media (max-width: 1024px) {
   html, body {
-    position: static !important;
-    height: auto !important;
-    min-height: 100dvh !important;
-    max-height: none !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
+    overflow-y: hidden !important;
     overflow-x: hidden !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  #main-view {
-    height: auto !important;
-    min-height: 100dvh !important;
-    max-height: none !important;
-    overflow: visible !important;
-    display: flex !important;
-    flex-direction: column !important;
+    position: relative !important;
     width: 100% !important;
-  }
-
-  .app-header {
-    padding: 10px 14px !important;
-    gap: 8px;
-    flex-wrap: wrap;
-    flex-shrink: 0 !important;
-  }
-
-  .content-wrapper {
-    flex: 1 0 auto !important;
-    height: auto !important;
-    min-height: calc(100dvh - 65px) !important;
-    overflow: visible !important;
-    padding: 6px 8px max(16px, env(safe-area-inset-bottom)) 8px !important;
+    margin: 0 !important;
+    padding: 0 !important;
     box-sizing: border-box !important;
   }
 
-  /* History Table Card on Mobile */
+  #main-view {
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    overflow-y: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .app-header {
+    padding: 6px 12px !important;
+    gap: 8px;
+    flex-wrap: nowrap !important;
+    flex-shrink: 0 !important;
+    min-height: 48px !important;
+  }
+
+  .content-wrapper {
+    flex: 1 1 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    overflow-y: hidden !important;
+    padding: 4px 6px 4px 6px !important;
+    box-sizing: border-box !important;
+    gap: 4px !important;
+  }
+
+  /* History Table Card on Mobile & Small Screens: Perfect 1-page fit, NO outer scroller */
   .table-panel-card:not(.hidden-panel) {
     margin-top: 0 !important;
-    margin-bottom: 8px !important;
-    padding: 10px !important;
+    margin-bottom: 2px !important;
+    padding: 6px 10px !important;
     border-radius: 12px !important;
-    flex: 1 0 auto !important;
-    height: auto !important;
-    min-height: 320px !important;
-    max-height: none !important;
-    overflow: visible !important;
+    flex: 1 1 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
   .table-panel-card .panel-header {
@@ -3393,18 +3406,16 @@ textarea { text-transform: uppercase; }
     white-space: nowrap;
   }
 
-  /* Telegram Message Box Mobile Optimization: Fixed at bottom with safe area */
+  /* Telegram Message Box: Docked cleanly at bottom without forcing page scroll */
   #log-form-panel {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 50 !important;
-    background: rgba(3, 7, 18, 0.96) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    padding: 6px 4px max(12px, env(safe-area-inset-bottom)) 4px !important;
+    flex: 0 0 auto !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 2px 0 !important;
     margin: 0 !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.6) !important;
+    border-top: none !important;
+    box-shadow: none !important;
+    width: 100% !important;
   }
 
   .telegram-input-box {
@@ -3413,30 +3424,30 @@ textarea { text-transform: uppercase; }
   }
 
   .telegram-input-box textarea {
-    min-height: 42px !important;
-    font-size: 0.96rem !important;
-    padding: 10px 2px !important;
+    min-height: 40px !important;
+    font-size: 0.95rem !important;
+    padding: 8px 2px !important;
   }
 
   .telegram-input-box button {
-    height: 42px !important;
+    height: 40px !important;
     padding: 0 16px !important;
     font-size: 0.85rem !important;
     border-radius: 10px !important;
   }
 
-  /* Panels (All Entries, Barred, Admin) on Mobile: Smooth scroll, full view */
+  /* Panels (All Entries, Barred, Admin) on Mobile: 100% Viewport Fit, Internal Scroll ONLY */
   #all-entries-panel-card.all-entries-fixed-layout:not(.hidden-panel),
   #barred-guests-panel-card.barred-fixed-layout:not(.hidden-panel),
   #admin-panel-card.admin-fixed-layout:not(.hidden-panel),
   #major-panel-card:not(.hidden-panel) {
-    flex: 1 0 auto !important;
-    height: auto !important;
-    min-height: calc(100dvh - 80px) !important;
-    max-height: none !important;
-    overflow: visible !important;
-    margin-bottom: 16px !important;
-    padding: 12px 10px max(16px, env(safe-area-inset-bottom)) 10px !important;
+    flex: 1 1 0 !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    margin-bottom: 0 !important;
+    padding: 8px 10px !important;
   }
 
   .all-entries-display-box {
@@ -3584,37 +3595,29 @@ textarea { text-transform: uppercase; }
   transform: translateY(-1px);
 }
 
-/* ==========================================================================
-   UNIVERSAL AUTO-FIT FALLBACK (Short Screens, Extreme Zoom, Resize Reflow)
-   ========================================================================== */
-@media (max-height: 560px) {
-  html, body, #main-view {
-    overflow-y: auto !important;
-    height: auto !important;
-    min-height: 100dvh !important;
-  }
-  .content-wrapper {
-    overflow: visible !important;
-    height: auto !important;
-    min-height: auto !important;
-  }
-  .table-panel-card:not(.hidden-panel),
-  #admin-panel-card:not(.hidden-panel),
-  #all-entries-panel-card:not(.hidden-panel),
-  #barred-guests-panel-card:not(.hidden-panel),
-  #major-panel-card:not(.hidden-panel) {
-    height: auto !important;
-    min-height: 480px !important;
-    overflow: visible !important;
-  }
+/* Ensure all view containers and panel wrappers auto-fit 100% width and height cleanly without body scroller */
+html, body {
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
 }
 
-/* Ensure all view containers and panel wrappers auto-fit 100% width cleanly */
+#main-view {
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  height: 100% !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+}
+
 .view-container,
 .content-wrapper,
 .table-panel-card,
 .form-panel-card {
   width: 100% !important;
+  max-width: 100% !important;
   box-sizing: border-box !important;
 }
 
