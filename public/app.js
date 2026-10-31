@@ -119,11 +119,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   const tableSearchInput = document.getElementById('table-search');
   const btnRefresh = document.getElementById('btn-refresh');
 
+  // DOM Elements - New Gaming Day / Change Date
+  const btnStartNewDay = document.getElementById('btn-start-new-day');
+  const newDayModal = document.getElementById('new-day-modal');
+  const newDayDateInput = document.getElementById('new-day-date-input');
+  const btnCancelNewDay = document.getElementById('btn-cancel-new-day');
+  const btnConfirmNewDay = document.getElementById('btn-confirm-new-day');
+  const homeGamingDateDisplay = document.getElementById('home-gaming-date-display');
+  const modalCurrentDateDisplay = document.getElementById('modal-current-date-display');
+
   // Local state cache
   let allEntries = [];
   let currentUser = null;
   let globalBarredList = [];
   let summaryChart = null;
+
+  // Helper: Strictly verify if active user is administrator
+  function isAdmin() {
+    if (!currentUser) return false;
+    const uid = String(currentUser.id || currentUser.name || '').toLowerCase().trim();
+    const urole = String(currentUser.role || '').toLowerCase().trim();
+    return uid === 'admin' || urole === 'admin';
+  }
 
   // Initialize Lucide Icons
   lucide.createIcons();
@@ -137,6 +154,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (data.serverTime) {
         const rtt = Date.now() - startFetch;
         timeOffset = data.serverTime + (rtt / 2) - Date.now();
+      }
+      if (data.currentBusinessDate) {
+        currentBusinessDateStr = data.currentBusinessDate;
+        if (homeGamingDateDisplay) homeGamingDateDisplay.textContent = currentBusinessDateStr;
       }
     }
   } catch (e) {
@@ -195,18 +216,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Helper: Check if an entry belongs to today's business session.
-  // Accepts entries whose datetime date matches the current business date.
-  // Also accepts entries saved with the physical calendar date when the business date
-  // is different (handles timing bug where form was submitted before business date loaded).
   function isEntryForToday(e) {
-    if (!e || !e.datetime) return false;
-    const todayBus = getBusinessDate();           // returns currentBusinessDateStr when set
-    const eDate = getBusinessDate(e.datetime);    // date part of stored datetime
-    if (eDate === todayBus) return true;
-    // Fallback: include entries from the physical today when business date differs
-    const physNow = getServerTimeDate();
-    const physToday = `${physNow.getFullYear()}-${String(physNow.getMonth()+1).padStart(2,'0')}-${String(physNow.getDate()).padStart(2,'0')}`;
-    return todayBus !== physToday && eDate === physToday;
+    if (!e) return false;
+    // Archived entries belong to past gaming days, exclude from today's home screen
+    if (e.archived === true || e.archived === 'true') return false;
+
+    const todayBus = currentBusinessDateStr || getBusinessDate();
+    const eDate = e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '');
+    return eDate === todayBus;
   }
 
   // Helper: Format amount as Indian Rupee (INR) without decimal zeroes
@@ -602,7 +619,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Restore last active panel (AFTER REFRESH SAME PAGE)
         const lastPanel = sessionStorage.getItem('current_panel') || 'home';
-        if (lastPanel === 'admin') showAdminPanel();
+        if (lastPanel === 'admin') {
+          if (isAdmin()) showAdminPanel();
+          else showHomePanel();
+        }
         else if (lastPanel === 'major') showMajorPanel();
         else if (lastPanel === 'all_entries') showAllEntriesPanel();
         else if (lastPanel === 'barred') showBarredPanel();
@@ -755,6 +775,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (gamingDateEl) {
           gamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
         }
+        if (homeGamingDateDisplay) {
+          homeGamingDateDisplay.textContent = currentBusinessDateStr;
+        }
         // Refresh the hidden datetime input so future entries use the correct business date
         if (inputDateTime) inputDateTime.value = getLocalTimeISOString();
       }
@@ -876,14 +899,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // De-activate all nav buttons
     document.querySelectorAll('.btn-nav').forEach(btn => btn.classList.remove('active'));
 
-    // Keep wrapper locked inside single screen
+    // Keep wrapper locked inside single screen and auto-fit 100%
     const wrapper = document.querySelector('.content-wrapper');
     if (wrapper) {
-      wrapper.style.maxWidth = '';
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.width = '100%';
       wrapper.style.overflow = 'hidden';
       wrapper.style.height = '100%';
+      wrapper.style.flex = '1 1 0';
     }
     
+    // Lock outer viewport so no outer page scroller ever appears
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overflowY = 'hidden';
     document.body.style.overflow = 'hidden';
     document.body.style.overflowY = 'hidden';
   }
@@ -895,12 +923,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(tableSearchInput) tableSearchInput.value = '';
 
     // Auto-fit 100% in one page with zero page scrolling (Telegram layout on mobile & desktop)
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overflowY = 'hidden';
     document.body.style.overflow = 'hidden';
     document.body.style.overflowY = 'hidden';
     const wrapper = document.querySelector('.content-wrapper');
     if (wrapper) {
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.width = '100%';
       wrapper.style.overflow = 'hidden';
       wrapper.style.height = '100%';
+      wrapper.style.flex = '1 1 0';
     }
     const appFooter = document.querySelector('.app-footer');
     if (appFooter) appFooter.style.display = 'none';
@@ -938,6 +971,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function showAdminPanel() {
+    if (!isAdmin()) {
+      alert('Access restricted: Only Admin can access Add Member / user management.');
+      showHomePanel();
+      return;
+    }
+
     sessionStorage.setItem('current_panel', 'admin');
     hideAllPanels();
 
@@ -2423,6 +2462,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
   }
 
+  // View Toggle Logic for Home Screen (Sentence vs Table)
+  const btnHomeViewSentence = document.getElementById('btn-home-view-sentence');
+  const btnHomeViewTable = document.getElementById('btn-home-view-table');
+  const homeSentenceView = document.getElementById('home-entries-sentence-view');
+  const homeTableView = document.getElementById('home-entries-table-view');
+
+  if (btnHomeViewSentence && btnHomeViewTable) {
+    btnHomeViewSentence.addEventListener('click', () => {
+      btnHomeViewSentence.classList.add('active');
+      btnHomeViewTable.classList.remove('active');
+      btnHomeViewSentence.style.background = 'var(--primary)';
+      btnHomeViewSentence.style.color = '#fff';
+      btnHomeViewSentence.style.border = 'none';
+      btnHomeViewTable.style.background = 'rgba(255,255,255,0.08)';
+      btnHomeViewTable.style.color = '#94a3b8';
+      btnHomeViewTable.style.border = '1px solid rgba(255,255,255,0.15)';
+      if (homeSentenceView) homeSentenceView.style.setProperty('display', 'block', 'important');
+      if (homeTableView) homeTableView.style.setProperty('display', 'none', 'important');
+    });
+
+    btnHomeViewTable.addEventListener('click', () => {
+      btnHomeViewTable.classList.add('active');
+      btnHomeViewSentence.classList.remove('active');
+      btnHomeViewTable.style.background = 'var(--primary)';
+      btnHomeViewTable.style.color = '#fff';
+      btnHomeViewTable.style.border = 'none';
+      btnHomeViewSentence.style.background = 'rgba(255,255,255,0.08)';
+      btnHomeViewSentence.style.color = '#94a3b8';
+      btnHomeViewSentence.style.border = '1px solid rgba(255,255,255,0.15)';
+      if (homeTableView) homeTableView.style.setProperty('display', 'block', 'important');
+      if (homeSentenceView) homeSentenceView.style.setProperty('display', 'none', 'important');
+    });
+  }
+
   // View Toggle Logic for All Entries Panel
   const btnViewNormal = document.getElementById('btn-view-normal');
   const btnViewSentence = document.getElementById('btn-view-sentence');
@@ -2630,17 +2703,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
+      const homeSentenceList = document.getElementById('home-sentence-list');
+
       if (displayEntries.length === 0) {
-        logsTableBody.innerHTML = `
-          <tr>
-            <td colspan="10" class="no-records-row">
-              <div class="empty-state">
-                <i data-lucide="inbox"></i>
-                <p>No records found for today matching the filter.</p>
-              </div>
-            </td>
-          </tr>
-        `;
+        if (logsTableBody) {
+          logsTableBody.innerHTML = `
+            <tr>
+              <td colspan="10" class="no-records-row">
+                <div class="empty-state">
+                  <i data-lucide="inbox"></i>
+                  <p>No records found for today matching the filter.</p>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+        if (homeSentenceList) {
+          homeSentenceList.innerHTML = `
+            <li class="empty-state" style="padding: 30px; text-align: center; color: var(--text-muted); list-style: none;">
+              <i data-lucide="inbox" style="width: 32px; height: 32px; margin-bottom: 8px;"></i>
+              <p style="margin-top: 8px; font-size: 1.05rem;">No records found for today. Enter a log below and click SEND.</p>
+            </li>
+          `;
+        }
         lucide.createIcons();
         return;
       }
@@ -2654,12 +2739,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let html = '';
+    let sentenceHtml = '';
+
     displayEntries.forEach(entry => {
       const displayDate = entry.datetime ? entry.datetime.replace('T', ' ') : 'N/A';
+      const timeStr = entry.datetime
+        ? (entry.datetime.includes('T') ? entry.datetime.split('T')[1].slice(0, 5) : entry.datetime.slice(-5))
+        : '—';
       const cdText = escapeHTML(entry.cd || '—');
       const typeBadge = getTypeBadge(entry.type);
       const amtClass = CREDIT_TYPES.includes((entry.type || '').toUpperCase()) ? 'text-green' : 'text-red';
       const amtFormatted = formatCurrency(Number(entry.amount) || 0);
+      const sentence = getEntrySentence(entry);
+      const typeKey = (entry.type || '').toLowerCase().replace('/', '-');
+
       const actionButtons = isArchive
         ? '<span class="archive-note">Archive read-only</span>'
         : `
@@ -2675,6 +2768,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           `;
 
+      const homeSentenceActions = isArchive
+        ? ''
+        : `
+            <div class="home-sentence-actions">
+              <button type="button" class="btn-edit-entry" data-id="${entry.id}" title="Edit this entry">
+                <i data-lucide="edit-2" style="width:12px;height:12px;"></i> <span>Edit</span>
+              </button>
+              <button type="button" class="btn-delete-entry" data-id="${entry.id}" title="Delete this entry">
+                <i data-lucide="trash-2" style="width:12px;height:12px;"></i> <span>Del</span>
+              </button>
+            </div>
+          `;
+
+      // Home sentence card item (Direct sentence form with increased readable size)
+      sentenceHtml += `
+        <li class="home-sentence-card ${typeKey}">
+          <div class="home-sentence-left">
+            <span class="home-sentence-time-badge">${timeStr}</span>
+          </div>
+          <div class="home-sentence-text">${sentence}</div>
+          ${homeSentenceActions}
+        </li>
+      `;
+
+      // Traditional Table Row
       html += `
         <tr>
           <td><strong>${displayDate}</strong></td>
@@ -2700,32 +2818,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     });
 
-    logsTableBody.innerHTML = html;
+    if (logsTableBody) logsTableBody.innerHTML = html;
+    if (homeSentenceList) homeSentenceList.innerHTML = sentenceHtml;
     lucide.createIcons();
 
-    // Attach Edit listeners
-    logsTableBody.querySelectorAll('.btn-edit-entry')?.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = Number(btn.getAttribute('data-id'));
-        const entry = allEntries.find(e => e.id === id);
-        if (entry) editEntry(entry);
+    // Helper to attach Edit and Delete listeners to any container
+    const attachEntryListeners = (container) => {
+      if (!container) return;
+      container.querySelectorAll('.btn-edit-entry')?.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = Number(btn.getAttribute('data-id'));
+          const entry = allEntries.find(e => e.id === id);
+          if (entry) editEntry(entry);
+        });
       });
-    });
+      container.querySelectorAll('.btn-delete-entry')?.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const id = Number(btn.getAttribute('data-id'));
+          if (!confirm('Are you sure you want to delete this entry?')) return;
+          try {
+            const resp = await fetch(`/api/entries?id=${id}`, { method: 'DELETE' });
+            const data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Delete failed.');
+            await fetchEntries();
+          } catch (err) {
+            alert(`Error deleting entry: ${err.message}`);
+          }
+        });
+      });
+    };
 
-    // Attach Delete listeners
-    logsTableBody.querySelectorAll('.btn-delete-entry')?.forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = Number(btn.getAttribute('data-id'));
-        try {
-          const resp = await fetch(`/api/entries?id=${id}`, { method: 'DELETE' });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || 'Delete failed.');
-          await fetchEntries();
-        } catch (err) {
-          alert(`Error deleting entry: ${err.message}`);
-        }
-      });
-    });
+    attachEntryListeners(logsTableBody);
+    attachEntryListeners(homeSentenceList);
 
     } catch (err) {
       console.error("renderEntries Error: ", err);
@@ -2777,6 +2901,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const entryPayload = {
       datetime,
+      businessDate: currentBusinessDateStr || getBusinessDate(),
       cd: cd || 'CD-01',
       cashier: cashier || '-',
       type,
@@ -2826,6 +2951,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const cdFinal = cd || parsed.cd || 'CD-01';
             const quickPayload = {
               datetime: getLocalTimeISOString(),
+              businessDate: currentBusinessDateStr || getBusinessDate(),
               cd: cdFinal,
               cashier: cashier || '',
               type: parsed.type,
@@ -3330,6 +3456,126 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ==========================================================================
+  // START NEW GAMING DAY (CHANGE DATE)
+  // ==========================================================================
+  if (btnStartNewDay) {
+    btnStartNewDay.addEventListener('click', () => {
+      const current = currentBusinessDateStr || getBusinessDate();
+      if (modalCurrentDateDisplay) {
+        modalCurrentDateDisplay.textContent = current || 'Not Set';
+      }
+
+      // Pre-fill with next day
+      if (newDayDateInput) {
+        if (current && current.includes('-')) {
+          const parts = current.split('-').map(Number);
+          const nextDate = new Date(parts[0], parts[1] - 1, parts[2] + 1);
+          const ny = nextDate.getFullYear();
+          const nm = String(nextDate.getMonth() + 1).padStart(2, '0');
+          const nd = String(nextDate.getDate()).padStart(2, '0');
+          newDayDateInput.value = `${ny}-${nm}-${nd}`;
+        } else {
+          newDayDateInput.value = getLocalTimeISOString().split('T')[0];
+        }
+      }
+
+      if (newDayModal) {
+        newDayModal.style.display = 'flex';
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  }
+
+  // Cancel / NO button -> continue same gaming day
+  if (btnCancelNewDay) {
+    btnCancelNewDay.addEventListener('click', () => {
+      if (newDayModal) {
+        newDayModal.style.display = 'none';
+      }
+    });
+  }
+
+  // Confirm / YES button -> start new gaming day
+  if (btnConfirmNewDay) {
+    btnConfirmNewDay.addEventListener('click', async () => {
+      const newDate = newDayDateInput ? newDayDateInput.value : '';
+      if (!newDate) {
+        alert('Please select a valid new gaming date.');
+        return;
+      }
+
+      const origText = btnConfirmNewDay.innerHTML;
+      btnConfirmNewDay.disabled = true;
+      btnConfirmNewDay.innerHTML = '<span>Starting...</span>';
+
+      try {
+        const response = await fetch('/api/newday', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ newDate })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to start new gaming day.');
+        }
+
+        // Advance current business date
+        currentBusinessDateStr = result.newDate || newDate;
+        if (homeGamingDateDisplay) {
+          homeGamingDateDisplay.textContent = currentBusinessDateStr;
+        }
+        const allGamingDateEl = document.getElementById('all-entries-gaming-date');
+        if (allGamingDateEl) {
+          allGamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
+        }
+
+        // Update active day for All Entries navigation
+        const dayNum = Number(currentBusinessDateStr.split('-')[2]);
+        if (!isNaN(dayNum)) {
+          activeAllEntriesDay = dayNum;
+          if (gotoDayInput) gotoDayInput.value = activeAllEntriesDay;
+        }
+        if (allEntriesDatePicker) {
+          allEntriesDatePicker.value = currentBusinessDateStr;
+        }
+
+        // Update datetime input
+        if (inputDateTime) {
+          inputDateTime.value = getLocalTimeISOString();
+        }
+
+        // Close modal
+        if (newDayModal) {
+          newDayModal.style.display = 'none';
+        }
+
+        // Re-fetch all entries from backend (previous ones will now be archived)
+        await fetchEntries();
+
+        // Sync day pagination UI
+        renderDayPagination();
+
+        alert(`New Gaming Day started: ${currentBusinessDateStr}\nPrevious entries have been archived.`);
+      } catch (err) {
+        console.error('Error starting new gaming day:', err);
+        alert(`Failed to start new gaming day: ${err.message}`);
+      } finally {
+        btnConfirmNewDay.disabled = false;
+        btnConfirmNewDay.innerHTML = origText;
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  }
+
+  if (newDayModal) {
+    newDayModal.addEventListener('click', (e) => {
+      if (e.target === newDayModal) {
+        newDayModal.style.display = 'none';
+      }
+    });
+  }
+
   // Attach ALL ENTRIES filter listeners
   if (allEntriesDatePicker) {
     allEntriesDatePicker.addEventListener('change', () => {
@@ -3373,15 +3619,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }, 30000);
 
-  // Toggle the Admin Users button visibility based on active user
+  // Toggle the Admin Users button visibility based on active user (Admin only)
   function toggleAdminPanel() {
     if (btnAdminUsers) {
-      btnAdminUsers.style.display = currentUser ? 'flex' : 'none';
+      if (isAdmin()) {
+        btnAdminUsers.style.setProperty('display', 'flex', 'important');
+      } else {
+        btnAdminUsers.style.setProperty('display', 'none', 'important');
+      }
     }
   }
 
   // Admin Account Management: Fetch all accounts
   async function fetchUsers() {
+    if (!isAdmin()) return;
     try {
       const response = await fetch('/api/users?requester=admin');
       if (!response.ok) {
@@ -3588,6 +3839,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (addUserForm) {
     addUserForm.addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (!isAdmin()) {
+        alert('Unauthorized: Only Admin can add members.');
+        return;
+      }
       const username = newUsernameInput.value.trim().toLowerCase();
       const password = newPasswordInput.value;
       const roleElement = document.getElementById('new-user-role');
@@ -3924,6 +4179,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        if (data.type === 'date-changed' && data.newDate) {
+          console.log('[SSE] Business date changed to:', data.newDate);
+          currentBusinessDateStr = data.newDate;
+          if (homeGamingDateDisplay) {
+            homeGamingDateDisplay.textContent = currentBusinessDateStr;
+          }
+          const allGamingDateEl = document.getElementById('all-entries-gaming-date');
+          if (allGamingDateEl) {
+            allGamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
+          }
+          const dayNum = Number(currentBusinessDateStr.split('-')[2]);
+          if (!isNaN(dayNum)) {
+            activeAllEntriesDay = dayNum;
+            if (gotoDayInput) gotoDayInput.value = activeAllEntriesDay;
+          }
+          if (allEntriesDatePicker) {
+            allEntriesDatePicker.value = currentBusinessDateStr;
+          }
+          fetchEntries().then(() => {
+            renderDayPagination();
+          });
+        }
+
         if (data.type === 'barred-match') {
           const now = Date.now();
           const guestKey = String(data.guestname || '').toLowerCase().trim();
@@ -4088,6 +4366,22 @@ document.addEventListener('DOMContentLoaded', () => {
       reader.readAsDataURL(file);
     });
   }
+
+  // Window resize handler: Dynamically auto-fit layout when page size increases or decreases
+  let autoFitResizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (autoFitResizeTimer) clearTimeout(autoFitResizeTimer);
+    autoFitResizeTimer = setTimeout(() => {
+      const wrapper = document.querySelector('.content-wrapper');
+      if (wrapper) {
+        wrapper.style.maxWidth = '100%';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+        wrapper.style.flex = '1 1 0';
+      }
+      if (window.lucide) lucide.createIcons();
+    }, 100);
+  });
 });
 
 

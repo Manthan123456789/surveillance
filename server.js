@@ -31,26 +31,140 @@ const EXPORTS_DIR = path.join(TARGET_DIR, 'EXPORTS');
   }
 });
 
-function calculateActualBusinessDate() {
-  const d = new Date();
-  if (d.getHours() < 6) d.setDate(d.getDate() - 1);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+// --- INDIAN STANDARD TIME (IST: UTC+05:30) & BUSINESS DATE MANAGEMENT ---
+
+// Helper: Get date & time components in Indian Standard Time (Asia/Kolkata)
+function getISTDateParts(d = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+  const parts = formatter.formatToParts(d);
+  const map = {};
+  parts.forEach(p => map[p.type] = p.value);
+  return {
+    year: parseInt(map.year, 10),
+    month: parseInt(map.month, 10),
+    day: parseInt(map.day, 10),
+    hour: parseInt(map.hour, 10),
+    minute: parseInt(map.minute, 10),
+    second: parseInt(map.second, 10),
+    isoDate: `${map.year}-${map.month}-${map.day}`
+  };
 }
 
-function getPersistedBusinessDate() {
-  const filePath = path.join(TARGET_DIR, 'business_date.txt');
-  if (fs.existsSync(filePath)) {
-    return fs.readFileSync(filePath, 'utf8').trim();
+// Helper: Add or subtract days to a YYYY-MM-DD date string
+function addDaysToDateStr(dateStr, days) {
+  const parts = dateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days, 12, 0, 0));
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Calculate the natural business date based on current IST clock (06:00 AM cut-over)
+function calculateActualBusinessDate(d = new Date()) {
+  const ist = getISTDateParts(d);
+  if (ist.hour < 6) {
+    return addDaysToDateStr(ist.isoDate, -1);
   }
-  const d = calculateActualBusinessDate();
-  fs.writeFileSync(filePath, d, 'utf8');
-  return d;
+  return ist.isoDate;
 }
 
-let currentBusinessDate = getPersistedBusinessDate();
+// Compute the exact 06:00:00 AM IST timestamp when a given business date expires.
+// Rule:
+// - A business date `chosenDateStr` is active until the day after `chosenDateStr` at 06:00:00 AM IST.
+// - If manually set, it must ALSO not expire before the next upcoming 06:00 AM IST after the manual click.
+function computeExpiryTimestamp(chosenDateStr, setAtDateObj = new Date()) {
+  const ist = getISTDateParts(setAtDateObj);
+  // Next 06:00 AM IST after the moment this date was set
+  const nextCycleDay = (ist.hour < 6) ? ist.isoDate : addDaysToDateStr(ist.isoDate, 1);
+  const next6AfterSetMs = new Date(`${nextCycleDay}T06:00:00+05:30`).getTime();
+
+  // 06:00 AM IST on the day following the chosen business date
+  const dayAfterChosen = addDaysToDateStr(chosenDateStr, 1);
+  const next6AfterChosenMs = new Date(`${dayAfterChosen}T06:00:00+05:30`).getTime();
+
+  return Math.max(next6AfterSetMs, next6AfterChosenMs);
+}
+
+const STATE_FILE = path.join(TARGET_DIR, 'business_date_state.json');
+const TXT_FILE = path.join(TARGET_DIR, 'business_date.txt');
+
+function loadBusinessDateState() {
+  if (fs.existsSync(STATE_FILE)) {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+      if (parsed && parsed.currentBusinessDate && parsed.validUntilTimestamp) {
+        return parsed;
+      }
+    } catch (e) {
+      console.error('Failed to parse business_date_state.json:', e);
+    }
+  }
+
+  // Fallback / initialization from business_date.txt or actual IST date
+  let initialDate = '';
+  if (fs.existsSync(TXT_FILE)) {
+    initialDate = fs.readFileSync(TXT_FILE, 'utf8').trim();
+  }
+  if (!initialDate || !initialDate.includes('-')) {
+    initialDate = calculateActualBusinessDate();
+  }
+
+  const expiryMs = computeExpiryTimestamp(initialDate, new Date());
+  const istExpParts = getISTDateParts(new Date(expiryMs));
+  const state = {
+    currentBusinessDate: initialDate,
+    validUntilTimestamp: expiryMs,
+    validUntilIST: `${istExpParts.isoDate} 06:00:00 IST`,
+    lastChangeType: 'init',
+    lastChangeAt: new Date().toISOString()
+  };
+
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf8');
+    fs.writeFileSync(TXT_FILE, initialDate, 'utf8');
+  } catch (e) {}
+
+  return state;
+}
+
+let businessDateState = loadBusinessDateState();
+let currentBusinessDate = businessDateState.currentBusinessDate;
+
+function saveBusinessDateState(newDate, changeType = 'manual') {
+  const expiryMs = computeExpiryTimestamp(newDate, new Date());
+  const istExpParts = getISTDateParts(new Date(expiryMs));
+  
+  businessDateState = {
+    currentBusinessDate: newDate,
+    validUntilTimestamp: expiryMs,
+    validUntilIST: `${istExpParts.isoDate} 06:00:00 IST`,
+    lastChangeType: changeType,
+    lastChangeAt: new Date().toISOString()
+  };
+  currentBusinessDate = newDate;
+
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify(businessDateState, null, 2), 'utf8');
+    fs.writeFileSync(TXT_FILE, newDate, 'utf8');
+  } catch (err) {
+    console.error('Failed to write business date state:', err);
+  }
+  return businessDateState;
+}
+
+function savePersistedBusinessDate(d) {
+  return saveBusinessDateState(d, 'manual');
+}
 
 let sseClients = [];
 
@@ -123,10 +237,7 @@ setInterval(() => {
   });
 }, 20000);
 
-function savePersistedBusinessDate(d) {
-  currentBusinessDate = d;
-  fs.writeFileSync(path.join(TARGET_DIR, 'business_date.txt'), d, 'utf8');
-}
+
 
 
 
@@ -337,43 +448,71 @@ function readArchiveEntries(year, month) {
   return entries;
 }
 
-function startDailyArchiveJob() {
-  // 1. Check if we missed the reset while the server/PC was shut down
-  const actualDate = calculateActualBusinessDate();
-  if (actualDate > currentBusinessDate) {
-    console.log(`[${new Date().toISOString()}] Missed a daily reset. Running catch-up archiving...`);
-    try {
-      const result = archiveActiveEntries();
-      if (result.archived) {
-        console.log(`Catch-up archived ${result.count} entries.`);
-      }
-      savePersistedBusinessDate(actualDate);
-    } catch (err) {
-      console.error('Catch-up archive failed:', err);
-    }
+function checkAndPerformDailyReset(source = 'cron') {
+  const nowMs = Date.now();
+  const state = loadBusinessDateState();
+
+  // Condition: If current business date has NOT reached its 06:00 AM IST expiration, DO NOT CHANGE!
+  // This honors: "when any user manually change date before 06:00 hrs that day donot change date automatically"
+  if (nowMs < state.validUntilTimestamp) {
+    console.log(`[Daily Reset - ${source}] Date ${state.currentBusinessDate} is active until ${state.validUntilIST}. Auto-change skipped.`);
+    return { changed: false, currentBusinessDate: state.currentBusinessDate };
   }
 
-  // 2. Schedule the normal daily reset at 06:00 AM while the server is running
-  cron.schedule('0 6 * * *', () => {
-    const finishedBusinessDate = currentBusinessDate; // The date that just finished
-    savePersistedBusinessDate(calculateActualBusinessDate()); // Auto reset the logical date
-    console.log(`[${new Date().toISOString()}] Running daily archiving job...`);
-    try {
-      const result = archiveActiveEntries();
-      if (result.archived) {
-        console.log(`Archived ${result.count} active entries to: ${result.archivePaths.join(', ')}`);
-        if (result.archivedEntries && result.archivedEntries.length > 0) {
-          exportEntriesToExcel(result.archivedEntries, finishedBusinessDate);
-        }
-      } else {
-        console.log('No active entries were found to archive.');
+  console.log(`[Daily Reset - ${source}] Business date ${state.currentBusinessDate} reached 06:00 AM IST cut-off. Archiving entries...`);
+  const finishedBusinessDate = state.currentBusinessDate;
+
+  try {
+    const result = archiveActiveEntries();
+    if (result.archived) {
+      console.log(`[Daily Reset - ${source}] Archived ${result.count} active entries to: ${result.archivePaths.join(', ')}`);
+      if (result.archivedEntries && result.archivedEntries.length > 0) {
+        exportEntriesToExcel(result.archivedEntries, finishedBusinessDate);
       }
-    } catch (err) {
-      console.error('Scheduled archive failed:', err);
+    } else {
+      console.log(`[Daily Reset - ${source}] No active entries found to archive.`);
     }
-  }, {
-    scheduled: true
+  } catch (err) {
+    console.error(`[Daily Reset - ${source}] Scheduled archive failed:`, err);
+  }
+
+  // Advance to next business date (the next day after the finished business date)
+  const nextDate = addDaysToDateStr(finishedBusinessDate, 1);
+  saveBusinessDateState(nextDate, 'auto');
+  console.log(`[Daily Reset - ${source}] Automatically advanced business date to: ${nextDate}`);
+
+  // Broadcast to all connected clients
+  broadcastEvent({
+    type: 'date-changed',
+    newDate: nextDate
   });
+
+  return { changed: true, newDate: nextDate };
+}
+
+function startDailyArchiveJob() {
+  // 1. Check if an auto-reset was missed while server was offline
+  try {
+    checkAndPerformDailyReset('startup');
+  } catch (err) {
+    console.error('Startup reset check failed:', err);
+  }
+
+  // 2. Schedule everyday at 06:00 AM Indian Standard Time (Asia/Kolkata)
+  cron.schedule('0 6 * * *', () => {
+    console.log(`[${new Date().toISOString()}] 06:00 AM IST Cron triggered.`);
+    checkAndPerformDailyReset('cron-0600-ist');
+  }, {
+    scheduled: true,
+    timezone: "Asia/Kolkata"
+  });
+
+  // 3. Periodic safety check every 5 minutes (catches wake-ups after cloud host spin-downs)
+  setInterval(() => {
+    try {
+      checkAndPerformDailyReset('interval-check');
+    } catch (e) {}
+  }, 5 * 60 * 1000);
 }
 
 // Database Helper: Load users
@@ -1027,8 +1166,15 @@ const server = http.createServer((req, res) => {
 
   // GET /api/status
   if (pathname === '/api/status' && req.method === 'GET') {
+    const istParts = getISTDateParts(new Date());
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ currentBusinessDate, serverTime: Date.now() }));
+    res.end(JSON.stringify({
+      currentBusinessDate,
+      serverTime: Date.now(),
+      serverTimeIST: `${istParts.isoDate} ${String(istParts.hour).padStart(2, '0')}:${String(istParts.minute).padStart(2, '0')}:${String(istParts.second).padStart(2, '0')} IST`,
+      validUntilIST: businessDateState.validUntilIST,
+      validUntilTimestamp: businessDateState.validUntilTimestamp
+    }));
     return;
   }
 
@@ -1166,28 +1312,35 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const data = body ? JSON.parse(body) : {};
+        const finishedDate = currentBusinessDate;
         const result = archiveActiveEntries();
         
-        // Advance business date
-        if (data.newDate) {
-          savePersistedBusinessDate(data.newDate);
-        } else {
-          const d = new Date(currentBusinessDate);
-          d.setDate(d.getDate() + 1);
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          savePersistedBusinessDate(`${year}-${month}-${day}`);
+        if (result.archived && result.archivedEntries && result.archivedEntries.length > 0) {
+          try {
+            exportEntriesToExcel(result.archivedEntries, finishedDate);
+          } catch (e) {
+            console.error('Failed to export to excel on manual new day:', e);
+          }
         }
+
+        // Advance business date
+        const targetDate = data.newDate || addDaysToDateStr(currentBusinessDate, 1);
+        saveBusinessDateState(targetDate, 'manual');
+
+        // Broadcast date-changed so all open client tabs update immediately
+        broadcastEvent({
+          type: 'date-changed',
+          newDate: targetDate
+        });
 
         if (!result.archived) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true, message: 'Date changed. No previous entries to archive.', newDate: currentBusinessDate }));
+          res.end(JSON.stringify({ success: true, message: 'Date changed. No previous entries to archive.', newDate: targetDate }));
           return;
         }
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, message: `Archived ${result.count} entries to Excel`, archive: result.archivePaths, newDate: currentBusinessDate }));
+        res.end(JSON.stringify({ success: true, message: `Archived ${result.count} entries to Excel`, archive: result.archivePaths, newDate: targetDate }));
       } catch (err) {
         console.error('Error during NEW DAY process:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
