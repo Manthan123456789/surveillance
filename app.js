@@ -2960,21 +2960,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     let cardRow = 0;
     guestSummaries.forEach(g => {
       const upperName = String(g.name || '').toUpperCase();
+      const inStr = Number(g.totalIn || 0).toLocaleString('en-IN');
+      const outStr = Number(g.totalOut || 0).toLocaleString('en-IN');
+      const resStr = Number(g.result || 0).toLocaleString('en-IN');
 
       // Row 1 of card (Cell I1, I6, I11...)
       aoa[cardRow][8] = `GUEST NAME: ${upperName}`;
 
       // Row 2 of card (Cell I2, I7, I12...)
       if (!aoa[cardRow + 1]) aoa[cardRow + 1] = new Array(9).fill('');
-      aoa[cardRow + 1][8] = `TOTAL IN: ${g.totalIn}`;
+      aoa[cardRow + 1][8] = `TOTAL IN: ${inStr}`;
 
       // Row 3 of card (Cell I3, I8, I13...)
       if (!aoa[cardRow + 2]) aoa[cardRow + 2] = new Array(9).fill('');
-      aoa[cardRow + 2][8] = `TOTAL OUT: ${g.totalOut}`;
+      aoa[cardRow + 2][8] = `TOTAL OUT: ${outStr}`;
 
       // Row 4 of card (Cell I4, I9, I14...)
       if (!aoa[cardRow + 3]) aoa[cardRow + 3] = new Array(9).fill('');
-      aoa[cardRow + 3][8] = `RESULT: ${g.result}`;
+      aoa[cardRow + 3][8] = `RESULT: ${resStr}`;
 
       // Row 5 is blank separator (Cell I5, I10, I15...)
       if (!aoa[cardRow + 4]) aoa[cardRow + 4] = new Array(9).fill('');
@@ -3136,14 +3139,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const guestSummaries = computeGuestSummariesForExcel(entries);
 
-    // Flatten guest summary cards into row-by-row elements - ALL CAPITAL LETTERS
+    // Flatten guest summary cards into row-by-row elements - ALL CAPITAL LETTERS & INDIAN RUPEE FORMAT
     const cardRows = [];
     guestSummaries.forEach(g => {
       const upperName = String(g.name || '').toUpperCase();
+      const inStr = Number(g.totalIn || 0).toLocaleString('en-IN');
+      const outStr = Number(g.totalOut || 0).toLocaleString('en-IN');
+      const resStr = Number(g.result || 0).toLocaleString('en-IN');
       cardRows.push({ type: 'top', text: `GUEST NAME: ${upperName}` });
-      cardRows.push({ type: 'in', text: `TOTAL IN: ${g.totalIn}` });
-      cardRows.push({ type: 'out', text: `TOTAL OUT: ${g.totalOut}` });
-      cardRows.push({ type: 'res', text: `RESULT: ${g.result}` });
+      cardRows.push({ type: 'in', text: `TOTAL IN: ${inStr}` });
+      cardRows.push({ type: 'out', text: `TOTAL OUT: ${outStr}` });
+      cardRows.push({ type: 'res', text: `RESULT: ${resStr}` });
       cardRows.push({ type: 'blank', text: '' });
     });
 
@@ -3210,7 +3216,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="excel-cell">${e ? escapeHTML(String((e.datetime || '').replace('T', ' ')).toUpperCase()) : ''}</td>
           <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.surv || '').toUpperCase()) : ''}</td>
           <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.type || '').toUpperCase()) : ''}</td>
-          <td class="excel-cell" style="text-align:right;font-weight:700;">${e ? Number(e.amount || 0).toLocaleString() : ''}</td>
+          <td class="excel-cell" style="text-align:right;font-weight:700;">${e ? Number(e.amount || 0).toLocaleString('en-IN') : ''}</td>
           <td class="excel-cell" style="font-weight:700;">${e ? escapeHTML(String(e.guestname || '').toUpperCase()) : ''}</td>
           <td class="excel-cell">${e ? escapeHTML(String(e.card || '').toUpperCase()) : ''}</td>
           <td class="excel-cell">${e ? escapeHTML(String(e.otherinfo || '').toUpperCase()) : ''}</td>

@@ -265,6 +265,172 @@ function ensureArchiveWorkbook(year, month) {
   return getArchiveWorkbookPath(year, month);
 }
 
+function formatKCurrency(value) {
+  if (!value || isNaN(value)) return '0';
+  if (value >= 1000) {
+    const kValue = value / 1000;
+    return (Number.isInteger(kValue) ? kValue : kValue.toFixed(1)) + 'K';
+  }
+  return value.toString();
+}
+
+function getEntrySentence(e) {
+  const t = (e.type || '').toUpperCase();
+  const amt = formatKCurrency(Number(e.amount) || 0);
+  const guest = (e.guestname || 'Unknown').trim();
+  const card = e.card ? String(e.card).trim() : '';
+  const info = e.otherinfo ? ` (${e.otherinfo.trim()})` : '';
+
+  if (t === 'CASHIN' || t === 'C/IN') return `${amt} CASHIN BY ${guest}${info}`;
+  if (t === 'CASHOUT' || t === 'C/OUT') return `${amt} CASHOUT BY ${guest}${info}`;
+  if (t === 'ISSUE') return `${amt} ISSUE TO ${guest} FROM ${card} CARD${info}`;
+  if (t === 'DEPOSIT') return `${amt} DEPOSIT BY ${guest} ON ${card} CARD${info}`;
+  if (t === 'KEYIN') return `${amt} KEYIN BY ${guest}${info}`;
+  if (t === 'KEYOUT') return `${amt} KEYOUT BY ${guest}${info}`;
+  return `${amt} ${t} BY ${guest}${info}`;
+}
+
+function computeGuestSummaries(entries) {
+  const guestMap = {};
+
+  entries.forEach(e => {
+    const rawName = (e.guestname || '').trim();
+    if (!rawName) return;
+    const nameUpper = rawName.toUpperCase();
+    if (!guestMap[nameUpper]) {
+      guestMap[nameUpper] = {
+        name: nameUpper,
+        totalIn: 0,
+        totalOut: 0,
+        result: 0
+      };
+    }
+
+    const t = (e.type || '').toUpperCase().trim();
+    const amt = Number(e.amount) || 0;
+
+    if (['CASHIN', 'C/IN', 'ISSUE', 'KEYIN'].includes(t) || t.includes('IN') || t.includes('ISSUE')) {
+      guestMap[nameUpper].totalIn += amt;
+    } else if (['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT'].includes(t) || t.includes('OUT') || t.includes('DEP')) {
+      guestMap[nameUpper].totalOut += amt;
+    }
+  });
+
+  const guestList = Object.values(guestMap);
+  guestList.forEach(g => {
+    g.result = g.totalIn - g.totalOut;
+  });
+
+  // Sort by highest buying (totalIn) first
+  guestList.sort((a, b) => b.totalIn - a.totalIn);
+  return guestList;
+}
+
+function buildWorksheetForDay(entries) {
+  const aoa = [];
+  
+  // Header row (Row 1 in Excel) - ALL CAPITAL LETTERS
+  const header = [
+    'DATE & TIME',
+    'SURV ID',
+    'TYPE',
+    'AMOUNT',
+    'GUEST NAME',
+    'CARD',
+    'OTHER INFO',
+    'SENTENCE FORMAT',
+    '' // Column I holds the first summary card line at I1
+  ];
+  aoa.push(header);
+
+  // Compute guest summaries sorted by highest buying first
+  const guestSummaries = computeGuestSummaries(entries);
+
+  // Determine row count
+  const maxRows = Math.max(entries.length, guestSummaries.length * 5);
+  for (let i = 0; i < maxRows; i++) {
+    const row = new Array(9).fill('');
+    
+    // Fill entry columns A-H in ALL CAPITAL LETTERS
+    if (i < entries.length) {
+      const e = entries[i];
+      row[0] = String((e.datetime || '').replace('T', ' ')).toUpperCase();
+      row[1] = String(e.surv || '').toUpperCase();
+      row[2] = String(e.type || '').toUpperCase();
+      row[3] = Number(e.amount) || 0;
+      row[4] = String(e.guestname || '').toUpperCase();
+      row[5] = String(e.card || '').toUpperCase();
+      row[6] = String(e.otherinfo || '').toUpperCase();
+      row[7] = String(getEntrySentence(e)).toUpperCase();
+    }
+
+    aoa.push(row);
+  }
+
+  // Populate Guest Summary Cards starting directly at COLUMN I (cell I1) - ALL CAPITAL LETTERS & INDIAN RUPEE FORMAT
+  let cardRow = 0;
+  guestSummaries.forEach(g => {
+    const upperName = String(g.name || '').toUpperCase();
+    const inStr = Number(g.totalIn || 0).toLocaleString('en-IN');
+    const outStr = Number(g.totalOut || 0).toLocaleString('en-IN');
+    const resStr = Number(g.result || 0).toLocaleString('en-IN');
+
+    // Row 1 of card (Cell I1, I6, I11...)
+    aoa[cardRow][8] = `GUEST NAME: ${upperName}`;
+
+    // Row 2 of card (Cell I2, I7, I12...)
+    if (!aoa[cardRow + 1]) aoa[cardRow + 1] = new Array(9).fill('');
+    aoa[cardRow + 1][8] = `TOTAL IN: ${inStr}`;
+
+    // Row 3 of card (Cell I3, I8, I13...)
+    if (!aoa[cardRow + 2]) aoa[cardRow + 2] = new Array(9).fill('');
+    aoa[cardRow + 2][8] = `TOTAL OUT: ${outStr}`;
+
+    // Row 4 of card (Cell I4, I9, I14...)
+    if (!aoa[cardRow + 3]) aoa[cardRow + 3] = new Array(9).fill('');
+    aoa[cardRow + 3][8] = `RESULT: ${resStr}`;
+
+    // Row 5 is blank separator (Cell I5, I10, I15...)
+    if (!aoa[cardRow + 4]) aoa[cardRow + 4] = new Array(9).fill('');
+
+    cardRow += 5;
+  });
+
+  const ws = xlsx.utils.aoa_to_sheet(aoa);
+  
+  // Set column widths for clean display
+  ws['!cols'] = [
+    { wch: 18 }, // A: DATE & TIME
+    { wch: 10 }, // B: SURV ID
+    { wch: 10 }, // C: TYPE
+    { wch: 12 }, // D: AMOUNT
+    { wch: 16 }, // E: GUEST NAME
+    { wch: 12 }, // F: CARD
+    { wch: 14 }, // G: OTHER INFO
+    { wch: 28 }, // H: SENTENCE FORMAT
+    { wch: 26 }  // I: GUEST SUMMARY CARDS (starting directly at cell I1)
+  ];
+
+  return ws;
+}
+
+function readSheetEntries(ws) {
+  if (!ws) return [];
+  const rows = xlsx.utils.sheet_to_json(ws, { defval: '' });
+  return rows.map(r => ({
+    id: r.id || r.ID || null,
+    datetime: r['Date & Time'] || r.datetime || '',
+    surv: r['SURV ID'] || r.surv || '',
+    cd: r['C / D'] || r.cd || '',
+    cashier: r.Cashier || r.cashier || '',
+    type: r.Type || r.type || '',
+    amount: Number(r.Amount || r.amount) || 0,
+    guestname: r['Guest Name'] || r.guestname || '',
+    card: r.Card || r.card || '',
+    otherinfo: r['Other Info'] || r.otherinfo || ''
+  })).filter(e => e.datetime && (e.type || e.amount || e.guestname));
+}
+
 function saveEntriesToArchive(entries) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return [];
@@ -274,10 +440,11 @@ function saveEntriesToArchive(entries) {
   const groupedByMonth = {};
 
   entries.forEach(entry => {
-    const dateValue = entry.datetime ? new Date(entry.datetime) : new Date();
-    const year = dateValue.getFullYear();
-    const month = String(dateValue.getMonth() + 1).padStart(2, '0');
-    const day = String(dateValue.getDate());
+    const dateStr = entry.businessDate || entry.datetime || new Date().toISOString();
+    const parts = dateStr.slice(0, 10).split('-');
+    const year = parts[0];
+    const month = parts[1];
+    const day = String(Number(parts[2]));
     const workbookKey = `${year}-${month}`;
 
     if (!groupedByMonth[workbookKey]) {
@@ -287,39 +454,53 @@ function saveEntriesToArchive(entries) {
       groupedByMonth[workbookKey][day] = [];
     }
 
-    groupedByMonth[workbookKey][day].push({
-      id: entry.id,
-      datetime: entry.datetime,
-      surv: entry.surv,
-      cd: entry.cd,
-      cashier: entry.cashier,
-      type: entry.type,
-      amount: entry.amount,
-      guestname: entry.guestname,
-      card: entry.card || '',
-      otherinfo: entry.otherinfo || ''
-    });
+    groupedByMonth[workbookKey][day].push(entry);
   });
 
   Object.entries(groupedByMonth).forEach(([workbookKey, days]) => {
     const [year, month] = workbookKey.split('-');
     const workbookPath = ensureArchiveWorkbook(year, month);
-    const workbook = fs.existsSync(workbookPath) ? xlsx.readFile(workbookPath) : xlsx.utils.book_new();
+    let workbook;
+    if (fs.existsSync(workbookPath)) {
+      try {
+        workbook = xlsx.readFile(workbookPath);
+      } catch (e) {
+        workbook = xlsx.utils.book_new();
+      }
+    } else {
+      workbook = xlsx.utils.book_new();
+    }
 
-    Object.entries(days).forEach(([day, dayEntries]) => {
-      const sheetName = String(Number(day));
-      const existingSheet = workbook.Sheets[sheetName];
-      const existingData = existingSheet ? xlsx.utils.sheet_to_json(existingSheet, { defval: '' }) : [];
-      const merged = [...existingData, ...dayEntries];
-      const worksheet = xlsx.utils.json_to_sheet(merged);
-      workbook.Sheets[sheetName] = worksheet;
+    // Ensure all 31 sheets exist in order (1 to 31)
+    for (let d = 1; d <= 31; d++) {
+      const sheetName = String(d);
+      if (days[sheetName] && days[sheetName].length > 0) {
+        let existing = [];
+        if (workbook.Sheets[sheetName]) {
+          try {
+            existing = readSheetEntries(workbook.Sheets[sheetName]);
+          } catch (e) {}
+        }
+        const existingIds = new Set(existing.map(e => e.id));
+        const newOnes = days[sheetName].filter(e => !existingIds.has(e.id));
+        const allDayEntries = [...existing, ...newOnes];
+
+        workbook.Sheets[sheetName] = buildWorksheetForDay(allDayEntries);
+      } else if (!workbook.Sheets[sheetName]) {
+        workbook.Sheets[sheetName] = buildWorksheetForDay([]);
+      }
+
       if (!workbook.SheetNames.includes(sheetName)) {
         workbook.SheetNames.push(sheetName);
       }
-    });
+    }
+
+    // Ensure sheets 1 to 31 are in numerical order
+    workbook.SheetNames.sort((a, b) => Number(a) - Number(b));
 
     xlsx.writeFile(workbook, workbookPath);
     archiveFiles.add(workbookPath);
+    console.log(`Saved monthly archive with sheets 1-31: ${workbookPath}`);
   });
 
   return Array.from(archiveFiles);
@@ -363,23 +544,9 @@ function archiveActiveEntries() {
 function exportEntriesToExcel(entries, dateStr) {
   if (!entries || entries.length === 0) return;
   try {
-    const formattedData = entries.map(e => ({
-      ID: e.id,
-      'Gaming Date': e.businessDate,
-      'Date/Time': e.datetime,
-      'Surv': e.surv || '',
-      'CD': e.cd || '',
-      'Cashier': e.cashier || '',
-      'Type': e.type || '',
-      'Amount': e.amount || '',
-      'Guest Name': e.guestname || '',
-      'Card Number': e.card || '',
-      'Other Info': e.otherinfo || ''
-    }));
-
-    const worksheet = xlsx.utils.json_to_sheet(formattedData);
+    const ws = buildWorksheetForDay(entries);
     const workbook = xlsx.utils.book_new();
-    xlsx.utils.book_append_sheet(workbook, worksheet, 'Entries');
+    xlsx.utils.book_append_sheet(workbook, ws, dateStr);
 
     const fileName = `Export_${dateStr.replace(/-/g, '')}.xlsx`;
     const exportPath = path.join(EXPORTS_DIR, fileName);
@@ -427,21 +594,8 @@ function readArchiveEntries(year, month) {
   const entries = [];
 
   workbook.SheetNames.forEach(sheetName => {
-    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: '' });
-    data.forEach(row => {
-      entries.push({
-        id: row.id || null,
-        datetime: row.datetime || `${year}-${month}-${sheetName}`,
-        surv: row.surv || '',
-        cd: row.cd || '',
-        cashier: row.cashier || '',
-        type: row.type || '',
-        amount: Number(row.amount) || 0,
-        guestname: row.guestname || '',
-        card: row.card || '',
-        otherinfo: row.otherinfo || ''
-      });
-    });
+    const sheetEntries = readSheetEntries(workbook.Sheets[sheetName]);
+    entries.push(...sheetEntries);
   });
 
   entries.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
@@ -1199,6 +1353,29 @@ const server = http.createServer((req, res) => {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'Failed to read archive entries.' }));
     }
+    return;
+  }
+
+  // GET /api/archive/download - Download raw 1-31 monthly Excel workbook
+  if (pathname === '/api/archive/download' && req.method === 'GET') {
+    const year = parsedUrl.searchParams.get('year');
+    const month = parsedUrl.searchParams.get('month');
+    if (!year || !month) {
+      res.writeHead(400, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'year and month are required.' }));
+      return;
+    }
+    const filePath = getArchiveWorkbookPath(year, month);
+    if (!fs.existsSync(filePath)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Archive workbook not found.' }));
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="Monthly_Archive_${year}-${month}.xlsx"`
+    });
+    fs.createReadStream(filePath).pipe(res);
     return;
   }
 
