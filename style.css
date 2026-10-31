@@ -1636,8 +1636,9 @@ body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  padding: 12px 6px !important;
-  gap: 12px !important;
+  padding: 5px 6px !important;
+  gap: 8px !important;
+  min-height: 28px !important;
   transition: background 0.15s ease !important;
 }
 
@@ -1653,8 +1654,8 @@ body {
 .home-sentence-card::before {
   content: '' !important;
   display: inline-block !important;
-  width: 9px !important;
-  height: 9px !important;
+  width: 7px !important;
+  height: 7px !important;
   border-radius: 50% !important;
   background-color: var(--primary, #6366f1) !important;
   flex-shrink: 0 !important;
@@ -1674,7 +1675,7 @@ body {
 
 .home-sentence-time-badge {
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.88rem !important;
+  font-size: 0.78rem !important;
   font-weight: 700 !important;
   color: #94a3b8 !important;
   background: transparent !important;
@@ -1685,17 +1686,17 @@ body {
 
 .home-sentence-text {
   flex: 1 1 auto !important;
-  font-size: 1.15rem !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.5px !important;
+  font-size: 0.88rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px !important;
   color: #ffffff !important;
-  line-height: 1.4 !important;
+  line-height: 1.3 !important;
 }
 
 .home-sentence-actions {
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  gap: 4px !important;
   flex-shrink: 0 !important;
 }
 
@@ -1703,14 +1704,15 @@ body {
   background: rgba(255, 255, 255, 0.05) !important;
   border: 1px solid rgba(255, 255, 255, 0.14) !important;
   color: #94a3b8 !important;
-  border-radius: 6px !important;
-  padding: 5px 10px !important;
-  font-size: 0.78rem !important;
+  border-radius: 4px !important;
+  padding: 2px 7px !important;
+  font-size: 0.70rem !important;
   font-weight: 700 !important;
+  height: 24px !important;
   cursor: pointer !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 4px !important;
+  gap: 3px !important;
   transition: all 0.15s ease !important;
 }
 
@@ -1728,22 +1730,11 @@ body {
 
 @media (max-width: 768px) {
   .home-sentence-card {
-    padding: 10px 4px !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
+    padding: 4px 4px !important;
+    gap: 6px !important;
   }
   .home-sentence-text {
-    font-size: 1.05rem !important;
-    width: 100% !important;
-    order: 3 !important;
-    padding-left: 12px !important;
-  }
-  .home-sentence-left {
-    order: 1 !important;
-  }
-  .home-sentence-actions {
-    order: 2 !important;
-    margin-left: auto !important;
+    font-size: 0.82rem !important;
   }
 }
 

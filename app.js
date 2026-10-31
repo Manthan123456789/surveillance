@@ -2773,10 +2773,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         : `
             <div class="home-sentence-actions">
               <button type="button" class="btn-edit-entry" data-id="${entry.id}" title="Edit this entry">
-                <i data-lucide="edit-2" style="width:14px;height:14px;"></i> <span>Edit</span>
+                <i data-lucide="edit-2" style="width:12px;height:12px;"></i> <span>Edit</span>
               </button>
               <button type="button" class="btn-delete-entry" data-id="${entry.id}" title="Delete this entry">
-                <i data-lucide="trash-2" style="width:14px;height:14px;"></i> <span>Del</span>
+                <i data-lucide="trash-2" style="width:12px;height:12px;"></i> <span>Del</span>
               </button>
             </div>
           `;
