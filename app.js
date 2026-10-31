@@ -1929,6 +1929,45 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Helper to optimize large photos/screenshots before upload (speeds up multi-upload)
+  async function compressImageIfNeeded(file, maxDimension = 1200, quality = 0.85) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width <= maxDimension && height <= maxDimension && file.size < 500 * 1024) {
+            resolve(e.target.result);
+            return;
+          }
+          if (width > height) {
+            if (width > maxDimension) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
+            }
+          } else {
+            if (height > maxDimension) {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => resolve(e.target.result);
+        img.src = e.target.result;
+      };
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(file);
+    });
+  }
+
   // Universal File Parser: Excel (.xlsx, .xls, .csv), Images/Screenshots (.png, .jpg, .jpeg, .webp), Word (.docx), PDF (.pdf, .txt)
   async function parseBarredFile(file) {
     const name = file.name || '';
@@ -1936,12 +1975,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // 0. IMAGES & SCREENSHOTS (png, jpg, jpeg, webp, gif, bmp)
     if (file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'].includes(ext)) {
-      const base64Img = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const base64Img = await compressImageIfNeeded(file);
+      if (!base64Img) return [];
       let cleanName = name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
       if (/^image|^screenshot|^photo|^file|^img|^\d+$/i.test(cleanName) || cleanName.length < 2) {
         cleanName = 'BARRED GUEST PHOTO';
@@ -2246,8 +2281,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (files.length === 0) return;
       try {
         btnImportBarredDoc.disabled = true;
-        btnImportBarredDoc.innerHTML = `<i data-lucide="loader" class="spin" style="width: 17px; height: 17px;"></i>`;
+        btnImportBarredDoc.innerHTML = `<i data-lucide="loader" class="spin" style="width: 18px; height: 18px;"></i>`;
         if (window.lucide) lucide.createIcons();
+
+        if (files.length > 1) {
+          showToast(`Processing ${files.length} photos/files...`, 'info');
+        }
 
         let allGuests = [];
         for (const file of files) {
