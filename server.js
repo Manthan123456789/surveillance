@@ -379,9 +379,7 @@ function startDailyArchiveJob() {
 // Database Helper: Load users
 function loadUsers() {
   const defaultUsers = {
-    admin: { password: 'admin', role: 'admin' },
-    surv_agent: { password: 'password123', role: 'officer' },
-    cashier_chief: { password: 'password123', role: 'supervisor' }
+    admin: { password: 'admin', role: 'admin' }
   };
 
   if (!fs.existsSync(USERS_FILE)) {
@@ -398,6 +396,17 @@ function loadUsers() {
     const data = fs.readFileSync(USERS_FILE, 'utf8');
     let users = JSON.parse(data);
     let upgraded = false;
+
+    // Remove legacy default users so they never reappear after deletion
+    if (users.surv_agent) {
+      delete users.surv_agent;
+      upgraded = true;
+    }
+    if (users.cashier_chief) {
+      delete users.cashier_chief;
+      upgraded = true;
+    }
+
     for (let username in users) {
       if (typeof users[username] === 'string') {
         users[username] = {
@@ -407,11 +416,16 @@ function loadUsers() {
         upgraded = true;
       }
     }
-    // Ensure admin password is admin
-    if (users.admin && users.admin.password !== 'admin') {
+
+    // Ensure admin account always exists
+    if (!users.admin) {
+      users.admin = { password: 'admin', role: 'admin' };
+      upgraded = true;
+    } else if (users.admin.password !== 'admin') {
       users.admin.password = 'admin';
       upgraded = true;
     }
+
     if (upgraded) {
       saveUsers(users);
     }

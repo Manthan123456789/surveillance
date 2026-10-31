@@ -552,13 +552,16 @@ body {
    CONTENT LAYOUT & WIDGETS
    ========================================================================== */
 .content-wrapper {
-  max-width: 1600px;
-  width: 100%;
+  max-width: 100% !important;
+  width: 100% !important;
   margin: 0 auto;
-  padding: 32px 40px;
+  padding: clamp(6px, 1vh, 12px) clamp(8px, 1.5vw, 20px) !important;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: clamp(8px, 1vh, 16px);
+  flex: 1 1 0;
+  min-height: 0;
+  box-sizing: border-box;
 }
 
 /* Stats Aggregators */
@@ -679,7 +682,6 @@ body {
 .form-group {
   display: flex;
   flex-direction: column;
-}
   gap: 6px;
 }
 
@@ -1877,48 +1879,51 @@ textarea { text-transform: uppercase; }
    DESKTOP AUTO-FIT & MOBILE RESPONSIVE ENGINE
    ========================================================================== */
 
-/* DESKTOP (min-width: 1025px): Perfect 1-screen fit, zero page scrolling, no missing lines */
+/* UNIVERSAL AUTO-FIT & RESPONSIVE ENGINE (ALL SCREENS & RESIZE EVENTS) */
 @media (min-width: 1025px) {
   html, body {
-    height: 100vh !important;
+    height: 100% !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
+    position: relative !important;
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    box-sizing: border-box !important;
     background-attachment: fixed;
   }
   #main-view {
     height: 100% !important;
     height: 100dvh !important;
     max-height: 100dvh !important;
+    min-height: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
     width: 100% !important;
+    box-sizing: border-box !important;
   }
   .app-header {
-    flex: 0 0 54px !important;
-    height: 54px !important;
+    flex: 0 0 auto !important;
+    min-height: 50px !important;
+    height: auto !important;
+    padding: 8px clamp(12px, 2vw, 28px) !important;
   }
   .content-wrapper { 
     flex: 1 1 0 !important; 
-    height: calc(100dvh - 54px) !important;
-    max-height: calc(100dvh - 54px) !important;
+    height: 100% !important;
+    max-height: 100% !important;
     min-height: 0 !important;
     display: flex !important; 
     flex-direction: column !important; 
     overflow: hidden !important; 
-    padding: 6px 18px 6px 18px !important; 
+    padding: 4px clamp(8px, 1.5vw, 18px) 6px clamp(8px, 1.5vw, 18px) !important; 
     box-sizing: border-box !important;
+    width: 100% !important;
+    max-width: 100% !important;
     justify-content: flex-start !important; 
   }
   .table-panel-card:not(.hidden-panel) { 
@@ -2196,15 +2201,32 @@ textarea { text-transform: uppercase; }
   text-transform: uppercase;
 }
 
-/* Dual Box Grid (Side-by-Side) */
+/* Dual Box Grid (Side-by-Side on desktop, auto-stack on narrow/short screens) */
 .admin-dual-boxes-grid {
   flex: 1 1 0 !important;
   min-height: 0 !important;
   display: grid;
-  grid-template-columns: 1fr 1.35fr;
-  gap: 22px;
+  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.35fr);
+  gap: clamp(10px, 1.5vw, 22px);
   overflow: hidden !important;
   margin-bottom: 6px;
+}
+
+@media (max-width: 960px) {
+  .admin-dual-boxes-grid {
+    grid-template-columns: 1fr !important;
+    overflow-y: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .admin-form-box {
+    flex: 0 0 auto !important;
+  }
+  .admin-active-users-box {
+    flex: 1 0 350px !important;
+    min-height: 280px !important;
+  }
 }
 
 /* Left Box: Add Member Form */
@@ -2212,17 +2234,19 @@ textarea { text-transform: uppercase; }
   background: rgba(15, 23, 42, 0.55);
   border: 1.5px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
-  padding: 24px;
+  padding: clamp(14px, 2vh, 24px);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  overflow: hidden;
+  justify-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .admin-member-form {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: clamp(10px, 1.5vh, 16px);
   width: 100%;
+  margin: auto 0;
 }
 .admin-input-wrap {
   display: flex;
@@ -2374,11 +2398,12 @@ textarea { text-transform: uppercase; }
   background: rgba(0, 0, 0, 0.35);
   border: 1.5px solid rgba(255, 255, 255, 0.14);
   border-radius: 10px;
-  padding: 12px 16px;
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
   transition: border-color 0.2s, background 0.2s;
   flex-shrink: 0;
 }
@@ -3056,24 +3081,13 @@ textarea { text-transform: uppercase; }
   -webkit-overflow-scrolling: touch;
 }
 
-/* 3-Column Grid matching wireframe */
+/* Responsive Auto-Fit Barred Grid: dynamically fills any screen size */
 .barred-cards-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: clamp(10px, 1.2vw, 16px);
   width: 100%;
   box-sizing: border-box;
-}
-
-@media (max-width: 1200px) {
-  .barred-cards-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 768px) {
-  .barred-cards-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Individual Barred Card */
@@ -3568,5 +3582,39 @@ textarea { text-transform: uppercase; }
 .btn-barred-tool:hover {
   filter: brightness(1.15);
   transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   UNIVERSAL AUTO-FIT FALLBACK (Short Screens, Extreme Zoom, Resize Reflow)
+   ========================================================================== */
+@media (max-height: 560px) {
+  html, body, #main-view {
+    overflow-y: auto !important;
+    height: auto !important;
+    min-height: 100dvh !important;
+  }
+  .content-wrapper {
+    overflow: visible !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+  .table-panel-card:not(.hidden-panel),
+  #admin-panel-card:not(.hidden-panel),
+  #all-entries-panel-card:not(.hidden-panel),
+  #barred-guests-panel-card:not(.hidden-panel),
+  #major-panel-card:not(.hidden-panel) {
+    height: auto !important;
+    min-height: 480px !important;
+    overflow: visible !important;
+  }
+}
+
+/* Ensure all view containers and panel wrappers auto-fit 100% width cleanly */
+.view-container,
+.content-wrapper,
+.table-panel-card,
+.form-panel-card {
+  width: 100% !important;
+  box-sizing: border-box !important;
 }
 

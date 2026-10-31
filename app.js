@@ -899,12 +899,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // De-activate all nav buttons
     document.querySelectorAll('.btn-nav').forEach(btn => btn.classList.remove('active'));
 
-    // Keep wrapper locked inside single screen
+    // Keep wrapper locked inside single screen and auto-fit 100%
     const wrapper = document.querySelector('.content-wrapper');
     if (wrapper) {
-      wrapper.style.maxWidth = '';
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.width = '100%';
       wrapper.style.overflow = 'hidden';
       wrapper.style.height = '100%';
+      wrapper.style.flex = '1 1 0';
     }
     
     document.body.style.overflow = 'hidden';
@@ -922,8 +924,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.style.overflowY = 'hidden';
     const wrapper = document.querySelector('.content-wrapper');
     if (wrapper) {
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.width = '100%';
       wrapper.style.overflow = 'hidden';
       wrapper.style.height = '100%';
+      wrapper.style.flex = '1 1 0';
     }
     const appFooter = document.querySelector('.app-footer');
     if (appFooter) appFooter.style.display = 'none';
@@ -4333,6 +4338,22 @@ document.addEventListener('DOMContentLoaded', () => {
       reader.readAsDataURL(file);
     });
   }
+
+  // Window resize handler: Dynamically auto-fit layout when page size increases or decreases
+  let autoFitResizeTimer = null;
+  window.addEventListener('resize', () => {
+    if (autoFitResizeTimer) clearTimeout(autoFitResizeTimer);
+    autoFitResizeTimer = setTimeout(() => {
+      const wrapper = document.querySelector('.content-wrapper');
+      if (wrapper) {
+        wrapper.style.maxWidth = '100%';
+        wrapper.style.width = '100%';
+        wrapper.style.height = '100%';
+        wrapper.style.flex = '1 1 0';
+      }
+      if (window.lucide) lucide.createIcons();
+    }, 100);
+  });
 });
 
 
