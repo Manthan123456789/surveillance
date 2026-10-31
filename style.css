@@ -3114,8 +3114,15 @@ textarea { text-transform: uppercase; }
   text-transform: uppercase;
 }
 .barred-card-actions {
-  display: flex;
+  display: none;
   gap: 6px;
+  align-items: center;
+}
+.barred-edit-active .barred-card-actions {
+  display: flex !important;
+}
+.barred-edit-active .barred-guest-card-box {
+  border-color: rgba(245, 158, 11, 0.5) !important;
 }
 .btn-card-action {
   background: transparent;
@@ -3610,5 +3617,123 @@ html, body {
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
+}
+
+/* ============================================================
+   EXCEL WORKBOOK SPREADSHEET VIEWER (Authentic Excel Layout)
+   ============================================================ */
+.excel-sheet-viewer {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  background: #0f172a;
+  overflow: auto;
+  border-radius: 8px;
+}
+
+.excel-grid-table {
+  border-collapse: collapse;
+  width: max-content;
+  min-width: 100%;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: Calibri, 'Segoe UI', Tahoma, Arial, sans-serif;
+  font-size: 13px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+
+/* Excel Column letter header row (A, B, C, D...) */
+.excel-col-letter-row th {
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+/* Excel Row numbers (1, 2, 3...) */
+.excel-row-num {
+  background: #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  padding: 4px 8px;
+  border: 1px solid #cbd5e1;
+  user-select: none;
+  min-width: 32px;
+}
+
+/* Excel Cell */
+.excel-cell {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Yellow Header row matching user requirement */
+.excel-header-cell {
+  background: #facc15 !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  border: 1px solid #ca8a04 !important;
+  padding: 8px 12px;
+}
+
+/* Column I & J Spacers */
+.excel-spacer-cell {
+  background: #f8fafc;
+  border-top: none;
+  border-bottom: none;
+  width: 16px;
+}
+
+/* Column K Guest Summary Card */
+.excel-guest-card-cell {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 700;
+  border-left: 2px solid #0f172a !important;
+  border-right: 2px solid #0f172a !important;
+  padding: 5px 12px;
+}
+
+.excel-card-top {
+  border-top: 2px solid #0f172a !important;
+  background: #f1f5f9;
+  color: #0f172a;
+  font-size: 13.5px;
+}
+
+.excel-card-in {
+  color: #15803d;
+}
+
+.excel-card-out {
+  color: #b91c1c;
+}
+
+.excel-card-result {
+  border-bottom: 2px solid #0f172a !important;
+  color: #0369a1;
+}
+
+.excel-card-blank {
+  background: transparent;
+  border: none !important;
+  height: 12px;
+}
+
+.btn-barred-toggle-view.active {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: #10b981 !important;
+  color: #10b981 !important;
 }
 

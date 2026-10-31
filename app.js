@@ -7,6 +7,87 @@ const DEBIT_TYPES = ['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT', 'PAID'];
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // ==========================================================================
+  // IN-APP TOAST & CONFIRM SYSTEM (NO BROWSER "LOCALHOST SAYS" DIALOGS)
+  // ==========================================================================
+  function showToast(message, type = 'info') {
+    if (!message) return;
+    let toastContainer = document.getElementById('app-toast-container');
+    if (!toastContainer) {
+      toastContainer = document.createElement('div');
+      toastContainer.id = 'app-toast-container';
+      toastContainer.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:9999999;display:flex;flex-direction:column;gap:8px;pointer-events:none;align-items:center;max-width:90vw;';
+      document.body.appendChild(toastContainer);
+    }
+    const toast = document.createElement('div');
+    const msgStr = String(message);
+    const isError = type === 'error' || /fail|error|wrong|invalid|missing|denied/i.test(msgStr);
+    const isSuccess = type === 'success' || /success|saved|uploaded|imported|exported|deleted|updated/i.test(msgStr);
+    const borderColor = isError ? '#ef4444' : (isSuccess ? '#10b981' : '#38bdf8');
+    const dotColor = isError ? '#ef4444' : (isSuccess ? '#10b981' : '#38bdf8');
+
+    toast.style.cssText = `background:#0f172a;border:1.5px solid ${borderColor};color:#ffffff;padding:10px 22px;border-radius:10px;font-weight:700;font-size:0.9rem;box-shadow:0 10px 25px -5px rgba(0,0,0,0.6),0 0 15px ${borderColor}33;display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(-12px);transition:all 0.25s cubic-bezier(0.16,1,0.3,1);pointer-events:auto;cursor:pointer;`;
+    const cleanEscaped = msgStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    toast.innerHTML = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0;"></span><span style="letter-spacing:0.3px;">${cleanEscaped}</span>`;
+
+    toastContainer.appendChild(toast);
+    requestAnimationFrame(() => {
+      toast.style.opacity = '1';
+      toast.style.transform = 'translateY(0)';
+    });
+
+    const removeToast = () => {
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateY(-12px)';
+      setTimeout(() => { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 250);
+    };
+
+    toast.addEventListener('click', removeToast);
+    setTimeout(removeToast, 3500);
+  }
+
+  // Override window.alert completely so NO "localhost says" popup ever appears!
+  window.alert = function(msg) {
+    showToast(msg);
+  };
+
+  // Custom In-App Confirm Modal (NO browser "localhost says" dialogs)
+  function customConfirm(message) {
+    return new Promise((resolve) => {
+      let modal = document.getElementById('app-confirm-modal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'app-confirm-modal';
+        modal.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);z-index:9999999;align-items:center;justify-content:center;';
+        modal.innerHTML = `
+          <div style="background:#1e293b;border:1px solid rgba(255,255,255,0.15);border-radius:12px;padding:24px;max-width:420px;width:90%;box-shadow:0 20px 25px -5px rgba(0,0,0,0.6);text-align:center;">
+            <div style="font-size:1.05rem;font-weight:700;color:#fff;margin-bottom:20px;line-height:1.4;" id="app-confirm-msg"></div>
+            <div style="display:flex;justify-content:center;gap:12px;">
+              <button id="app-confirm-cancel" style="padding:9px 22px;border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);cursor:pointer;font-weight:700;font-size:0.9rem;">CANCEL</button>
+              <button id="app-confirm-ok" style="padding:9px 22px;border-radius:8px;background:#ef4444;color:#fff;border:none;cursor:pointer;font-weight:800;font-size:0.9rem;">CONFIRM</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      }
+      const msgEl = document.getElementById('app-confirm-msg');
+      if (msgEl) msgEl.textContent = message;
+      modal.style.display = 'flex';
+
+      const okBtn = document.getElementById('app-confirm-ok');
+      const cancelBtn = document.getElementById('app-confirm-cancel');
+
+      const cleanup = () => {
+        modal.style.display = 'none';
+        okBtn.onclick = null;
+        cancelBtn.onclick = null;
+      };
+
+      okBtn.onclick = () => { cleanup(); resolve(true); };
+      cancelBtn.onclick = () => { cleanup(); resolve(false); };
+    });
+  }
+
   // Time Synchronization
   let timeOffset = 0;
   function getServerTimeDate() {
@@ -471,6 +552,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (allEntriesTableBody) {
         allEntriesTableBody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:20px;">No records found.</td></tr>`;
       }
+      const allEntriesExcelView = document.getElementById('all-entries-excel-view');
+      if (allEntriesExcelView) {
+        allEntriesExcelView.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No records found matching the filters.</div>`;
+      }
       return;
     }
 
@@ -553,6 +638,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       });
     }
+
+    renderAllEntriesExcelView(sourceEntries);
   }
 
   // Switch App Views
@@ -594,23 +681,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.style.background = `linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95)), url('${wallpapers[index]}') center/cover fixed no-repeat`;
   }
 
-  // ==========================================================================
-  // INACTIVITY AUTO-LOGOUT (30 MINUTES)
-  // ==========================================================================
-  const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-  let lastActivityUpdate = 0;
-
-  function recordUserActivity() {
-    if (!currentUser) return;
-    const now = Date.now();
-    // Throttle writing to localStorage to once every 5 seconds
-    if (now - lastActivityUpdate > 5000) {
-      lastActivityUpdate = now;
-      localStorage.setItem('surv_last_activity', String(now));
-    }
-  }
-
-  function performLogout(reason) {
+  // Inactivity auto-logout disabled per user request: user stays logged in permanently
+  function performLogout() {
     localStorage.removeItem('surv_session');
     localStorage.removeItem('surv_last_activity');
     sessionStorage.removeItem('current_panel');
@@ -623,39 +695,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (btnSupervisorLog) btnSupervisorLog.style.display = 'none';
 
     showView('login');
-    if (reason && loginErrorText && loginErrorContainer) {
-      loginErrorText.textContent = reason;
-      loginErrorContainer.style.display = 'flex';
+    if (loginErrorContainer) {
+      loginErrorContainer.style.display = 'none';
     }
   }
-
-  // Listen for user interactions to refresh inactivity timer
-  ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'].forEach(evt => {
-    window.addEventListener(evt, recordUserActivity, { passive: true });
-  });
-
-  // Check every 10 seconds if 30 minutes of inactivity has passed
-  setInterval(() => {
-    if (!currentUser) return;
-    const lastActive = Number(localStorage.getItem('surv_last_activity') || 0);
-    if (lastActive && (Date.now() - lastActive >= INACTIVITY_TIMEOUT_MS)) {
-      console.warn('[Session] User inactive for 30 minutes. Auto-logging out.');
-      performLogout('Logged out automatically due to 30 minutes of inactivity.');
-    }
-  }, 10000);
 
   // Verify and load active session
   function checkAuthSession() {
     const sessionData = localStorage.getItem('surv_session');
     if (sessionData) {
-      const lastActive = Number(localStorage.getItem('surv_last_activity') || 0);
-      if (lastActive && (Date.now() - lastActive >= INACTIVITY_TIMEOUT_MS)) {
-        performLogout('Session expired due to 30 minutes of inactivity.');
-        return;
-      }
-      localStorage.setItem('surv_last_activity', String(Date.now()));
-      lastActivityUpdate = Date.now();
-
       let parsedSession = null;
       try {
         parsedSession = JSON.parse(sessionData);
@@ -1343,18 +1391,27 @@ document.addEventListener('DOMContentLoaded', async () => {
       warningModal.style.display = 'flex';
       if (window.lucide) lucide.createIcons();
 
-      function handleAcknowledge(e) {
+      function handleCloseWarning(e) {
         if (e) e.preventDefault();
         warningModal.style.display = 'none';
-        if (btnClose) btnClose.removeEventListener('click', handleAcknowledge);
         resolve(true);
       }
 
-      if (btnClose) {
-        btnClose.onclick = handleAcknowledge;
-      } else {
-        resolve(true);
-      }
+      const closeTriggers = [
+        document.getElementById('btn-close-barred-warning'),
+        document.getElementById('btn-x-close-barred-warning'),
+        document.getElementById('btn-cancel-barred-warning')
+      ].filter(Boolean);
+
+      closeTriggers.forEach(btn => {
+        btn.onclick = handleCloseWarning;
+      });
+
+      warningModal.onclick = (e) => {
+        if (e.target === warningModal) {
+          handleCloseWarning(e);
+        }
+      };
     });
   }
 
@@ -1384,6 +1441,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (filtered.length === 0) {
       container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No barred guests found.</div>';
+      const barredExcelView = document.getElementById('barred-excel-view');
+      if (barredExcelView) barredExcelView.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No barred guests found.</div>';
       return;
     }
 
@@ -1422,11 +1481,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       }
 
+      if (g.pdfData && (!g.photo || !String(g.photo).startsWith('data:image/'))) {
+        photoHtml = `
+          <div class="barred-photo-placeholder btn-view-pdf" data-pdf="${g.pdfData}" title="Click to view PDF document" style="cursor:pointer;background:rgba(56,189,248,0.12);color:#38bdf8;border:1.5px solid rgba(56,189,248,0.4);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;height:100%;">
+            <i data-lucide="file-text" style="width:26px;height:26px;"></i>
+            <span style="font-size:10px;font-weight:800;color:#38bdf8;">VIEW PDF</span>
+          </div>`;
+      }
+
       cardsHtml += `
         <div class="barred-guest-card-box" data-id="${g.id}">
           <div class="barred-card-header">
             <span class="barred-badge-title">BARRED GUEST</span>
-            <div class="barred-card-actions">
+            <div class="barred-card-actions" style="display: ${barredEditMode ? 'flex' : 'none'};">
               <button class="btn-card-action btn-card-edit" data-id="${g.id}" title="Edit Barred Guest">
                 <i data-lucide="edit-2" style="width:13px;height:13px;"></i>
               </button>
@@ -1461,6 +1528,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <span class="barred-field-label">PROPERTY:</span>
                 <span class="barred-field-value">${escapeHTML(String(propVal || '-'))}</span>
               </div>
+              ${g.pdfData ? `
+              <div class="barred-field-row" style="margin-top:4px;">
+                <span class="barred-field-label">DOCUMENT:</span>
+                <span class="barred-field-value">
+                  <a href="${g.pdfData}" download="${escapeHTML(nameVal || 'barred')}.pdf" target="_blank" style="color:#38bdf8;font-weight:700;display:inline-flex;align-items:center;gap:4px;text-decoration:none;">
+                    <i data-lucide="file-text" style="width:14px;height:14px;"></i> VIEW / DOWNLOAD PDF
+                  </a>
+                </span>
+              </div>` : ''}
             </div>
           </div>
         </div>
@@ -1469,6 +1545,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     cardsHtml += '</div>';
 
     container.innerHTML = cardsHtml;
+    renderBarredExcelView(filtered);
     if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
 
     // Attach listeners for Edit
@@ -1510,17 +1587,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     container.querySelectorAll('.btn-card-delete').forEach(btn => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-id');
-        if (!confirm('Are you sure you want to delete this barred guest?')) return;
+        if (!(await customConfirm('Are you sure you want to delete this barred guest?'))) return;
         try {
           const r = await fetch(`/api/barred?id=${id}`, { method: 'DELETE' });
           if (r.ok) {
+            showToast('Barred guest deleted successfully.', 'success');
             await fetchAndRenderBarredGuests();
             await fetchGlobalBarredList();
           } else {
-            alert('Failed to remove barred guest.');
+            showToast('Failed to remove barred guest.', 'error');
           }
         } catch (e) {
-          alert('Error removing barred guest.');
+          showToast('Error removing barred guest.', 'error');
         }
       });
     });
@@ -1561,6 +1639,82 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
     });
+  }
+
+  // Render Barred Guests in authentic Excel Spreadsheet Grid on Website
+  function renderBarredExcelView(guests) {
+    const container = document.getElementById('barred-excel-view');
+    if (!container) return;
+
+    if (!guests || guests.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No barred guests found.</div>`;
+      return;
+    }
+
+    let html = `
+      <div style="overflow-x: auto; max-width: 100%;">
+        <table class="excel-grid-table">
+          <thead>
+            <tr class="excel-col-letter-row">
+              <th class="excel-row-num"></th>
+              <th style="min-width:70px;">A</th>
+              <th style="min-width:150px;">B</th>
+              <th style="min-width:100px;">C</th>
+              <th style="min-width:200px;">D</th>
+              <th style="min-width:130px;">E</th>
+              <th style="min-width:130px;">F</th>
+              <th style="min-width:180px;">G</th>
+            </tr>
+            <tr>
+              <th class="excel-row-num">1</th>
+              <th class="excel-cell excel-header-cell">PHOTO</th>
+              <th class="excel-cell excel-header-cell">GUEST NAME</th>
+              <th class="excel-cell excel-header-cell">DATE</th>
+              <th class="excel-cell excel-header-cell">REASON / INCIDENT</th>
+              <th class="excel-cell excel-header-cell">INSTRUCTION</th>
+              <th class="excel-cell excel-header-cell">PROPERTY</th>
+              <th class="excel-cell excel-header-cell">OTHER INFO / DOC</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    guests.forEach((g, idx) => {
+      const rowNum = idx + 2;
+      let photoHtml = '<span style="color:#94a3b8;font-size:11px;">NO PHOTO</span>';
+      if (g.photo && (String(g.photo).startsWith('data:image/') || String(g.photo).startsWith('http'))) {
+        photoHtml = `<img src="${g.photo}" style="max-width:55px;max-height:55px;object-fit:cover;border-radius:4px;border:1px solid #cbd5e1;" alt="photo" />`;
+      } else if (g.pdfData) {
+        photoHtml = `<span style="color:#0284c7;font-weight:700;font-size:11px;"><i data-lucide="file-text" style="width:14px;height:14px;vertical-align:middle;"></i> PDF</span>`;
+      }
+
+      let docHtml = '';
+      if (g.pdfData) {
+        docHtml = ` <a href="${g.pdfData}" download="${escapeHTML(g.guestname || 'barred')}.pdf" target="_blank" style="color:#0284c7;font-weight:700;margin-left:4px;"><i data-lucide="file-text" style="width:12px;height:12px;vertical-align:middle;"></i> PDF</a>`;
+      }
+
+      html += `
+        <tr>
+          <td class="excel-row-num">${rowNum}</td>
+          <td class="excel-cell" style="text-align:center;padding:4px;">${photoHtml}</td>
+          <td class="excel-cell" style="font-weight:800;color:#0f172a;font-size:13.5px;">${escapeHTML(String(g.guestname || '-'))}</td>
+          <td class="excel-cell">${escapeHTML(String(g.date || '-'))}</td>
+          <td class="excel-cell" style="color:#b91c1c;font-weight:600;">${escapeHTML(String(g.reason || '-'))}</td>
+          <td class="excel-cell">${escapeHTML(String(g.inst || '-'))}</td>
+          <td class="excel-cell">${escapeHTML(String(g.property || '-'))}</td>
+          <td class="excel-cell">${escapeHTML(String(g.otherinfo || '-'))}${docHtml}</td>
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = html;
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
   }
 
   // STAFF DIRECTORY
@@ -1639,6 +1793,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Barred Guest Panel UI Event Listeners
   const btnOpenBarredModal = document.getElementById('btn-open-barred-modal');
   const btnCloseBarredModal = document.getElementById('btn-close-barred-modal');
+  const btnCancelBarredModal = document.getElementById('btn-cancel-barred-modal');
   const barredGuestModal = document.getElementById('barred-guest-modal');
   const barredGuestForm = document.getElementById('barred-guest-form');
   const barredSearch = document.getElementById('barred-search');
@@ -1673,6 +1828,37 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (barredGuestModal) barredGuestModal.style.display = 'none';
     });
   }
+
+  if (btnCancelBarredModal) {
+    btnCancelBarredModal.addEventListener('click', () => {
+      if (barredGuestModal) barredGuestModal.style.display = 'none';
+    });
+  }
+
+  // Close modal when clicking on backdrop
+  if (barredGuestModal) {
+    window.addEventListener('click', (e) => {
+      if (e.target === barredGuestModal) {
+        barredGuestModal.style.display = 'none';
+      }
+    });
+  }
+
+  // Global listener for PDF view clicks
+  document.body.addEventListener('click', (e) => {
+    const pdfBtn = e.target.closest('.btn-view-pdf');
+    if (pdfBtn && pdfBtn.dataset.pdf) {
+      const pdfWindow = window.open();
+      if (pdfWindow) {
+        pdfWindow.document.write(`<iframe src="${pdfBtn.dataset.pdf}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
+      } else {
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pdfBtn.dataset.pdf;
+        downloadLink.download = 'Barred_Document.pdf';
+        downloadLink.click();
+      }
+    }
+  });
 
   if (btnCloseBarredGuests) {
     btnCloseBarredGuests.addEventListener('click', () => {
@@ -1743,40 +1929,203 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Universal File Parser: Excel (.xlsx, .xls, .csv), Word (.docx), PDF (.pdf, .txt)
+  // Universal File Parser: Excel (.xlsx, .xls, .csv), Images/Screenshots (.png, .jpg, .jpeg, .webp), Word (.docx), PDF (.pdf, .txt)
   async function parseBarredFile(file) {
     const name = file.name || '';
     const ext = name.split('.').pop().toLowerCase();
     
-    // 1. EXCEL / CSV
+    // 0. IMAGES & SCREENSHOTS (png, jpg, jpeg, webp, gif, bmp)
+    if (file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif'].includes(ext)) {
+      const base64Img = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      let cleanName = name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' ').trim();
+      if (/^image|^screenshot|^photo|^file|^img|^\d+$/i.test(cleanName) || cleanName.length < 2) {
+        cleanName = 'BARRED GUEST PHOTO';
+      } else {
+        cleanName = cleanName.toUpperCase();
+      }
+      return [{
+        guestname: cleanName,
+        photo: base64Img,
+        reason: 'Uploaded from Photo / Screenshot',
+        date: new Date().toISOString().slice(0, 10),
+        inst: 'CHECK PHOTO',
+        property: '',
+        otherinfo: `File: ${file.name}`
+      }];
+    }
+
+    // 1. EXCEL / CSV (.xlsx, .xls, .csv)
     if (['xlsx', 'xls', 'csv'].includes(ext)) {
       const data = await file.arrayBuffer();
       const imgMap = (typeof extractExcelImages === 'function') ? await extractExcelImages(data) : {};
-      const wb = XLSX.read(data);
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      let rows = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
-      rows = rows.filter(s => {
-        const vals = Object.values(s).map(v => String(v).toUpperCase().trim());
-        return !(vals.includes('NAME') && vals.includes('REASON'));
-      });
+      const wb = XLSX.read(data, { type: 'array' });
+      
+      // Find sheet with the most rows
+      let bestWs = null;
+      let maxLen = -1;
+      for (const sName of wb.SheetNames) {
+        const sheet = wb.Sheets[sName];
+        if (sheet && sheet['!ref']) {
+          const range = XLSX.utils.decode_range(sheet['!ref']);
+          const numRows = range.e.r - range.s.r + 1;
+          if (numRows > maxLen) {
+            maxLen = numRows;
+            bestWs = sheet;
+          }
+        }
+      }
+      if (!bestWs) bestWs = wb.Sheets[wb.SheetNames[0]];
+      
+      const rawRows = XLSX.utils.sheet_to_json(bestWs, { header: 1, raw: false, defval: '' });
+      if (!rawRows || rawRows.length === 0) {
+        throw new Error('Excel sheet appears to be empty.');
+      }
+
+      // Detect header row by scanning first 15 rows
+      let headerRowIdx = -1;
+      let colName = -1, colReason = -1, colDate = -1, colInst = -1, colProp = -1, colPhoto = -1, colOther = -1;
+
+      for (let r = 0; r < Math.min(rawRows.length, 15); r++) {
+        const row = rawRows[r].map(c => String(c || '').trim().toLowerCase());
+        let matches = 0;
+        let tempName = -1, tempReason = -1, tempDate = -1, tempInst = -1, tempProp = -1, tempPhoto = -1, tempOther = -1;
+
+        row.forEach((cell, idx) => {
+          if (!cell) return;
+          if (/^(guest\s*name|full\s*name|customer\s*name|player\s*name|member\s*name|name|guest|player|customer|person|patron|member|suspect|individual|client|who)$/i.test(cell) ||
+              (/\bname\b/i.test(cell) && !/reason|incident|hotel|property|bank|card/i.test(cell)) ||
+              (/\bguest\b/i.test(cell))) {
+            tempName = idx;
+            matches++;
+          } else if (/reason|remark|incident|offense|cause|action|status|comment|note|description|violation|matter|why|details/i.test(cell)) {
+            tempReason = idx;
+            matches++;
+          } else if (/date|time|dt|when|dated/i.test(cell)) {
+            tempDate = idx;
+            matches++;
+          } else if (/inst|order|period|duration|type|penalty|valid|instruction|action\s*taken/i.test(cell)) {
+            tempInst = idx;
+            matches++;
+          } else if (/prop|casino|loc|branch|unit|venue|hotel|premises|club|place/i.test(cell)) {
+            tempProp = idx;
+            matches++;
+          } else if (/photo|pic|image|face|img/i.test(cell)) {
+            tempPhoto = idx;
+            matches++;
+          } else if (/other|info|contact|phone|mobile|id|passport|aadhaar|card|address/i.test(cell)) {
+            tempOther = idx;
+            matches++;
+          }
+        });
+
+        if (matches >= 1 && (tempName !== -1 || matches >= 2)) {
+          headerRowIdx = r;
+          colName = tempName;
+          colReason = tempReason;
+          colDate = tempDate;
+          colInst = tempInst;
+          colProp = tempProp;
+          colPhoto = tempPhoto;
+          colOther = tempOther;
+          break;
+        }
+      }
+
+      // Fallback column positions if no header was detected
+      if (headerRowIdx === -1) {
+        headerRowIdx = 0;
+        colName = 0;
+        colReason = 1;
+        colDate = 2;
+        colProp = 3;
+        colInst = 4;
+      } else {
+        const row0 = rawRows[headerRowIdx];
+        if (colName === -1) {
+          for (let c = 0; c < row0.length; c++) {
+            if (c !== colReason && c !== colDate && c !== colInst && c !== colProp) {
+              colName = c;
+              break;
+            }
+          }
+        }
+        if (colReason === -1) {
+          for (let c = 0; c < row0.length; c++) {
+            if (c !== colName && c !== colDate && c !== colInst && c !== colProp) {
+              colReason = c;
+              break;
+            }
+          }
+        }
+      }
+
       const guests = [];
-      rows.forEach(r => {
-        const g = {};
-        for (const [k, v] of Object.entries(r)) {
-          const kLow = k.toLowerCase().trim();
-          if (kLow.includes('name')) g.guestname = String(v).trim();
-          else if (kLow.includes('reason')) g.reason = String(v).trim();
-          else if (kLow.includes('date')) g.date = String(v).trim();
-          else if (kLow.includes('inst')) g.inst = String(v).trim();
-          else if (kLow.includes('prop')) g.property = String(v).trim();
-          else if (kLow.includes('photo')) g.photo = v;
-          else if (kLow.includes('other')) g.otherinfo = String(v).trim();
+      const startRow = headerRowIdx + 1;
+
+      for (let r = startRow; r < rawRows.length; r++) {
+        const row = rawRows[r];
+        if (!row || row.length === 0) continue;
+        const nonBlank = row.filter(c => String(c || '').trim() !== '');
+        if (nonBlank.length === 0) continue;
+
+        let gName = colName >= 0 && row[colName] ? String(row[colName]).trim() : '';
+        let gReason = colReason >= 0 && row[colReason] ? String(row[colReason]).trim() : '';
+        let gDate = colDate >= 0 && row[colDate] ? String(row[colDate]).trim() : '';
+        let gInst = colInst >= 0 && row[colInst] ? String(row[colInst]).trim() : '';
+        let gProp = colProp >= 0 && row[colProp] ? String(row[colProp]).trim() : '';
+        let gPhoto = colPhoto >= 0 && row[colPhoto] ? row[colPhoto] : null;
+        let gOther = colOther >= 0 && row[colOther] ? String(row[colOther]).trim() : '';
+
+        // If name wasn't in designated column, find the best non-empty text
+        if (!gName) {
+          for (let c = 0; c < row.length; c++) {
+            const val = String(row[c] || '').trim();
+            if (val && !/^\d+$/.test(val) && !/^\d{4}-\d{2}-\d{2}/.test(val) && c !== colReason) {
+              gName = val;
+              break;
+            }
+          }
         }
-        if (r.__rowNum__ !== undefined && imgMap[r.__rowNum__]) {
-          g.photo = imgMap[r.__rowNum__];
+
+        if (!gName) continue;
+
+        // Ignore accidental repeating header row
+        const upper = gName.toUpperCase();
+        if (upper === 'NAME' || upper === 'GUEST NAME' || upper === 'GUEST' || upper === 'FULL NAME') continue;
+
+        // Check for embedded photo from Excel drawings
+        if (imgMap[r]) {
+          gPhoto = imgMap[r];
         }
-        if (g.guestname) guests.push(g);
-      });
+
+        // Collect extra unmapped non-empty columns into otherinfo so NOTHING is lost
+        const extraData = [];
+        row.forEach((c, idx) => {
+          if (idx !== colName && idx !== colReason && idx !== colDate && idx !== colInst && idx !== colProp && idx !== colPhoto) {
+            const v = String(c || '').trim();
+            if (v) extraData.push(v);
+          }
+        });
+        if (extraData.length > 0 && !gOther) {
+          gOther = extraData.join(' | ');
+        }
+
+        guests.push({
+          guestname: gName,
+          reason: gReason || '-',
+          date: gDate || '',
+          inst: gInst || '',
+          property: gProp || '',
+          photo: gPhoto || null,
+          otherinfo: gOther || ''
+        });
+      }
+
       return guests;
     }
 
@@ -1808,14 +2157,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             for (let c = 0; c < cells.length; c++) {
               const val = cells[c].textContent.trim();
               const h = headers[c] || '';
-              if (h.includes('name')) g.guestname = val;
-              else if (h.includes('reason')) g.reason = val;
-              else if (h.includes('date')) g.date = val;
-              else if (h.includes('inst')) g.inst = val;
-              else if (h.includes('prop')) g.property = val;
-              else if (h.includes('other')) g.otherinfo = val;
+              if (/name|guest|player|customer|person/i.test(h)) g.guestname = val;
+              else if (/reason|remark|incident|offense|cause|action|status|comment|details/i.test(h)) g.reason = val;
+              else if (/date|time|dt/i.test(h)) g.date = val;
+              else if (/inst|order|period|type/i.test(h)) g.inst = val;
+              else if (/prop|casino|loc|venue|hotel/i.test(h)) g.property = val;
+              else if (/other|info|contact|card/i.test(h)) g.otherinfo = val;
             }
-            if (g.guestname) guests.push(g);
+            if (!g.guestname && cells[0]) g.guestname = cells[0].textContent.trim();
+            if (g.guestname && g.guestname.toUpperCase() !== 'NAME') guests.push(g);
           }
         }
       }
@@ -1824,21 +2174,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const paras = xmlDoc.getElementsByTagName('w:p');
         for (let i = 0; i < paras.length; i++) {
           const txt = paras[i].textContent.trim();
-          if (!txt) continue;
+          if (!txt || txt.length < 2) continue;
           const parts = txt.split(/[,;\t|]+/);
-          const g = {};
-          parts.forEach(p => {
-            const idx = p.indexOf(':');
-            if (idx > -1) {
-              const k = p.substring(0, idx).trim().toLowerCase();
-              const v = p.substring(idx + 1).trim();
-              if (k.includes('name')) g.guestname = v;
-              else if (k.includes('reason')) g.reason = v;
-              else if (k.includes('date')) g.date = v;
-              else if (k.includes('inst')) g.inst = v;
-              else if (k.includes('prop')) g.property = v;
-            }
-          });
+          const g = { guestname: parts[0].trim(), reason: parts[1] ? parts[1].trim() : '-' };
           if (g.guestname) guests.push(g);
         }
       }
@@ -1847,6 +2185,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 3. PDF (.pdf) or TEXT (.txt)
     if (ext === 'pdf' || ext === 'txt' || ext === 'doc') {
+      if (ext === 'pdf') {
+        const base64Pdf = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        let cleanTitle = name.replace(/\.pdf$/i, '').replace(/[_-]+/g, ' ').trim().toUpperCase();
+        if (!cleanTitle || cleanTitle.length < 2) cleanTitle = 'BARRED NOTICE DOCUMENT';
+
+        return [{
+          guestname: cleanTitle,
+          reason: 'Official Barred PDF Document',
+          date: new Date().toISOString().slice(0, 10),
+          inst: 'VIEW / DOWNLOAD PDF',
+          property: '',
+          otherinfo: `PDF Document: ${file.name}`,
+          pdfData: base64Pdf
+        }];
+      }
+
+      // Plaintext (.txt)
       const text = await file.text();
       const cleanLines = text.split(/[\r\n]+/).map(l => l.trim()).filter(l => l.length > 0);
       const guests = [];
@@ -1858,57 +2219,68 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (idx > -1) {
             const k = p.substring(0, idx).trim().toLowerCase();
             const v = p.substring(idx + 1).trim();
-            if (k.includes('name')) g.guestname = v;
-            else if (k.includes('reason')) g.reason = v;
-            else if (k.includes('date')) g.date = v;
-            else if (k.includes('inst')) g.inst = v;
-            else if (k.includes('prop')) g.property = v;
+            if (/name|guest|player|customer|person/i.test(k)) g.guestname = v;
+            else if (/reason|remark|incident|offense|cause/i.test(k)) g.reason = v;
+            else if (/date|time|dt/i.test(k)) g.date = v;
+            else if (/inst|order|period/i.test(k)) g.inst = v;
+            else if (/prop|casino|loc/i.test(k)) g.property = v;
           }
         });
+        if (!g.guestname && parts[0]) {
+          g.guestname = parts[0].trim();
+          g.reason = parts[1] ? parts[1].trim() : '-';
+        }
         if (g.guestname) guests.push(g);
       });
       return guests;
     }
 
-    throw new Error('Unsupported format. Please select an Excel (.xlsx, .xls, .csv), Word (.docx), or PDF (.pdf) file.');
+    throw new Error('Unsupported format. Please select an Excel (.xlsx, .xls, .csv), PDF (.pdf), or Image / Screenshot (.png, .jpg, .jpeg, .webp).');
   }
 
-  // Import button listener (Excel, Word, PDF)
+  // Single Unified Upload button listener (Photo, Excel, Word, PDF)
   if (btnImportBarredDoc && barredDocUpload) {
     btnImportBarredDoc.addEventListener('click', () => barredDocUpload.click());
     barredDocUpload.addEventListener('change', async () => {
-      const file = barredDocUpload.files[0];
-      if (!file) return;
+      const files = Array.from(barredDocUpload.files || []);
+      if (files.length === 0) return;
       try {
         btnImportBarredDoc.disabled = true;
-        btnImportBarredDoc.innerHTML = `<i data-lucide="loader" class="spin"></i> Importing...`;
+        btnImportBarredDoc.innerHTML = `<i data-lucide="loader" class="spin" style="width: 17px; height: 17px;"></i>`;
         if (window.lucide) lucide.createIcons();
 
-        const guests = await parseBarredFile(file);
-        if (!guests || guests.length === 0) {
-          alert('No valid barred guest records found in file. Make sure file contains Name/Guestname and Reason.');
+        let allGuests = [];
+        for (const file of files) {
+          const parsed = await parseBarredFile(file);
+          if (parsed && parsed.length > 0) {
+            allGuests = allGuests.concat(parsed);
+          }
+        }
+
+        if (allGuests.length === 0) {
+          showToast('No barred records could be read from selected file(s).', 'error');
           return;
         }
 
         const res = await fetch('/api/barred/bulk', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ guests })
+          body: JSON.stringify({ guests: allGuests })
         });
         const result = await res.json();
         if (result.success) {
-          alert(`Successfully imported ${result.count} barred guests!`);
+          showToast(`Successfully uploaded ${result.count} barred guest record(s)!`, 'success');
           await fetchAndRenderBarredGuests();
           await fetchGlobalBarredList();
         } else {
-          alert(result.error || 'Import failed.');
+          showToast(result.error || 'Upload failed.', 'error');
         }
       } catch (err) {
-        alert('Failed to parse file: ' + err.message);
+        showToast('Failed to parse file: ' + err.message, 'error');
       } finally {
         barredDocUpload.value = '';
         btnImportBarredDoc.disabled = false;
-        btnImportBarredDoc.innerHTML = `<i data-lucide="upload-cloud" style="width: 16px; height: 16px;"></i><span>IMPORT EXCEL / WORD / PDF</span>`;
+        btnImportBarredDoc.innerHTML = `<i data-lucide="upload-cloud" style="width: 18px; height: 18px;"></i>`;
         if (window.lucide) lucide.createIcons();
       }
     });
@@ -1917,34 +2289,74 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Delete all barred guests
   if (btnDeleteAllBarred) {
     btnDeleteAllBarred.addEventListener('click', async () => {
-      if (!confirm('Are you sure you want to delete ALL barred guests?')) return;
+      if (!(await customConfirm('Are you sure you want to delete ALL barred guests?'))) return;
       try {
         const res = await fetch('/api/barred?all=true', { method: 'DELETE' });
         const data = await res.json();
         if (res.ok) {
+          showToast('All barred guests have been deleted.', 'success');
           await fetchAndRenderBarredGuests();
           await fetchGlobalBarredList();
         } else {
-          alert(data.error || 'Failed to delete all barred guests.');
+          showToast(data.error || 'Failed to delete all barred guests.', 'error');
         }
       } catch (err) {
-        alert('Error deleting all barred guests.');
+        showToast('Error deleting all barred guests.', 'error');
       }
     });
   }
 
-  // Toggle Edit mode
+  // Toggle Edit mode - controls display of Edit & Delete buttons on cards
   if (btnToggleBarredEdit) {
     btnToggleBarredEdit.addEventListener('click', () => {
       barredEditMode = !barredEditMode;
       btnToggleBarredEdit.classList.toggle('active', barredEditMode);
+      if (barredEditMode) {
+        btnToggleBarredEdit.style.background = 'rgba(245, 158, 11, 0.25)';
+        btnToggleBarredEdit.style.borderColor = '#f59e0b';
+        btnToggleBarredEdit.style.color = '#f59e0b';
+      } else {
+        btnToggleBarredEdit.style.background = '';
+        btnToggleBarredEdit.style.borderColor = '';
+        btnToggleBarredEdit.style.color = '';
+      }
       const container = document.getElementById('barred-list-container');
       if (container) {
-        container.querySelectorAll('.btn-card-edit').forEach(el => {
-          el.style.transform = barredEditMode ? 'scale(1.2)' : '';
-          el.style.borderColor = barredEditMode ? '#f59e0b' : '';
+        container.classList.toggle('barred-edit-active', barredEditMode);
+        container.querySelectorAll('.barred-card-actions').forEach(el => {
+          el.style.display = barredEditMode ? 'flex' : 'none';
         });
       }
+      showToast(barredEditMode ? 'Edit / Delete Mode: ON' : 'Edit / Delete Mode: OFF', 'info');
+    });
+  }
+
+  // View Toggle Logic for Barred Guests Panel (Cards vs Excel Workbook View)
+  const btnBarredViewCards = document.getElementById('btn-barred-view-cards');
+  const btnBarredViewExcel = document.getElementById('btn-barred-view-excel');
+  const barredExcelView = document.getElementById('barred-excel-view');
+  let barredViewMode = 'cards';
+
+  if (btnBarredViewCards) {
+    btnBarredViewCards.addEventListener('click', () => {
+      barredViewMode = 'cards';
+      btnBarredViewCards.classList.add('active');
+      if (btnBarredViewExcel) btnBarredViewExcel.classList.remove('active');
+      const container = document.getElementById('barred-list-container');
+      if (container) container.style.setProperty('display', 'block', 'important');
+      if (barredExcelView) barredExcelView.style.setProperty('display', 'none', 'important');
+    });
+  }
+
+  if (btnBarredViewExcel) {
+    btnBarredViewExcel.addEventListener('click', () => {
+      barredViewMode = 'excel';
+      btnBarredViewExcel.classList.add('active');
+      if (btnBarredViewCards) btnBarredViewCards.classList.remove('active');
+      const container = document.getElementById('barred-list-container');
+      if (container) container.style.setProperty('display', 'none', 'important');
+      if (barredExcelView) barredExcelView.style.setProperty('display', 'block', 'important');
+      fetchAndRenderBarredGuests();
     });
   }
 
@@ -2487,27 +2899,145 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Excel Export Helper using SheetJS
-  function exportToExcel(entriesToExport, filename = 'Surveillance_Export') {
+  function computeGuestSummariesForExcel(entries) {
+    const guestMap = {};
+    entries.forEach(e => {
+      const rawName = (e.guestname || '').trim();
+      if (!rawName) return;
+      const nameUpper = rawName.toUpperCase();
+      if (!guestMap[nameUpper]) {
+        guestMap[nameUpper] = { name: nameUpper, totalIn: 0, totalOut: 0, result: 0 };
+      }
+      const t = (e.type || '').toUpperCase().trim();
+      const amt = Number(e.amount) || 0;
+      if (['CASHIN', 'C/IN', 'ISSUE', 'KEYIN'].includes(t) || t.includes('IN') || t.includes('ISSUE')) {
+        guestMap[nameUpper].totalIn += amt;
+      } else if (['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT'].includes(t) || t.includes('OUT') || t.includes('DEP')) {
+        guestMap[nameUpper].totalOut += amt;
+      }
+    });
+
+    const guestList = Object.values(guestMap);
+    guestList.forEach(g => { g.result = g.totalIn - g.totalOut; });
+    guestList.sort((a, b) => b.totalIn - a.totalIn);
+    return guestList;
+  }
+
+  function buildWorksheetForExcel(entries) {
+    const aoa = [];
+    const header = [
+      'DATE & TIME',
+      'SURV ID',
+      'TYPE',
+      'AMOUNT',
+      'GUEST NAME',
+      'CARD',
+      'OTHER INFO',
+      'SENTENCE FORMAT',
+      '' // Column I holds the first summary card line at I1
+    ];
+    aoa.push(header);
+
+    const guestSummaries = computeGuestSummariesForExcel(entries);
+    const maxRows = Math.max(entries.length, guestSummaries.length * 5);
+    for (let i = 0; i < maxRows; i++) {
+      const row = new Array(9).fill('');
+      if (i < entries.length) {
+        const e = entries[i];
+        row[0] = String((e.datetime || '').replace('T', ' ')).toUpperCase();
+        row[1] = String(e.surv || '').toUpperCase();
+        row[2] = String(e.type || '').toUpperCase();
+        row[3] = Number(e.amount) || 0;
+        row[4] = String(e.guestname || '').toUpperCase();
+        row[5] = String(e.card || '').toUpperCase();
+        row[6] = String(e.otherinfo || '').toUpperCase();
+        row[7] = String(getEntrySentence(e) || '').toUpperCase();
+      }
+      aoa.push(row);
+    }
+
+    // Populate Guest Summary Cards starting directly at COLUMN I (cell I1) - ALL CAPITAL LETTERS
+    let cardRow = 0;
+    guestSummaries.forEach(g => {
+      const upperName = String(g.name || '').toUpperCase();
+
+      // Row 1 of card (Cell I1, I6, I11...)
+      aoa[cardRow][8] = `GUEST NAME: ${upperName}`;
+
+      // Row 2 of card (Cell I2, I7, I12...)
+      if (!aoa[cardRow + 1]) aoa[cardRow + 1] = new Array(9).fill('');
+      aoa[cardRow + 1][8] = `TOTAL IN: ${g.totalIn}`;
+
+      // Row 3 of card (Cell I3, I8, I13...)
+      if (!aoa[cardRow + 2]) aoa[cardRow + 2] = new Array(9).fill('');
+      aoa[cardRow + 2][8] = `TOTAL OUT: ${g.totalOut}`;
+
+      // Row 4 of card (Cell I4, I9, I14...)
+      if (!aoa[cardRow + 3]) aoa[cardRow + 3] = new Array(9).fill('');
+      aoa[cardRow + 3][8] = `RESULT: ${g.result}`;
+
+      // Row 5 is blank separator (Cell I5, I10, I15...)
+      if (!aoa[cardRow + 4]) aoa[cardRow + 4] = new Array(9).fill('');
+
+      cardRow += 5;
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [
+      { wch: 18 }, // A: DATE & TIME
+      { wch: 10 }, // B: SURV ID
+      { wch: 10 }, // C: TYPE
+      { wch: 12 }, // D: AMOUNT
+      { wch: 16 }, // E: GUEST NAME
+      { wch: 12 }, // F: CARD
+      { wch: 14 }, // G: OTHER INFO
+      { wch: 28 }, // H: SENTENCE FORMAT
+      { wch: 26 }  // I: GUEST SUMMARY CARDS (starting directly at cell I1)
+    ];
+    return ws;
+  }
+
+  function exportToExcel(entriesToExport, filename = 'Surveillance_Export', specificDate = '') {
     if(!window.XLSX) {
       alert("Excel library not loaded yet.");
       return;
     }
-    const exportData = entriesToExport.map(e => ({
-      "Date & Time": e.datetime.replace('T', ' '),
-      "SURV ID": e.surv,
-      "C / D": e.cd,
-      "Cashier": e.cashier,
-      "Type": e.type,
-      "Amount": e.amount,
-      "Guest Name": e.guestname,
-      "Card": e.card || '',
-      "Other Info": e.otherinfo || '',
-      "Sentence Format": getEntrySentence(e)
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(exportData);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Surveillance Logs");
+
+    // Check if exporting a particular date or multiple dates
+    const dates = new Set(entriesToExport.map(e => (e.businessDate || (e.datetime ? e.datetime.slice(0, 10) : '')).trim()).filter(Boolean));
+    
+    // When a particular date is selected or entries belong to a single day: export that day's sheet
+    if (specificDate || dates.size <= 1) {
+      const sheetName = specificDate || (dates.size === 1 ? Array.from(dates)[0] : 'Entries');
+      const ws = buildWorksheetForExcel(entriesToExport);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31));
+      const fileDate = specificDate || (dates.size === 1 ? Array.from(dates)[0] : new Date().toISOString().slice(0,10));
+      XLSX.writeFile(wb, `${filename}_${fileDate}.xlsx`);
+      return;
+    }
+
+    // Multiple dates (Full Month): Group entries by day and create sheets 1 to 31 in order
+    const dayMap = {};
+    entriesToExport.forEach(e => {
+      const dt = e.businessDate || e.datetime || '';
+      let day = '';
+      if (dt.includes('-')) {
+        const parts = dt.slice(0, 10).split('-');
+        if (parts[2]) day = String(Number(parts[2]));
+      }
+      if (!day) day = '1';
+      if (!dayMap[day]) dayMap[day] = [];
+      dayMap[day].push(e);
+    });
+
+    for (let d = 1; d <= 31; d++) {
+      const sheetName = String(d);
+      const dayEntries = dayMap[sheetName] || [];
+      const ws = buildWorksheetForExcel(dayEntries);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    }
+
     XLSX.writeFile(wb, `${filename}_${new Date().toISOString().slice(0,10)}.xlsx`);
   }
 
@@ -2545,26 +3075,158 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // View Toggle Logic for All Entries Panel
+  // View Toggle Logic for All Entries Panel (Table vs Sentence vs Excel Workbook View)
   const btnViewNormal = document.getElementById('btn-view-normal');
   const btnViewSentence = document.getElementById('btn-view-sentence');
+  const btnViewExcel = document.getElementById('btn-view-excel');
   const allEntriesNormalView = document.getElementById('all-entries-normal-view');
+  const allEntriesExcelView = document.getElementById('all-entries-excel-view');
+  let allEntriesViewMode = 'table'; // 'table' | 'sentence' | 'excel'
 
-  if (btnViewNormal && btnViewSentence) {
-    if (btnViewNormal) btnViewNormal.addEventListener('click', () => {
+  if (btnViewNormal) {
+    btnViewNormal.addEventListener('click', () => {
+      allEntriesViewMode = 'table';
       btnViewNormal.classList.add('active');
-      btnViewSentence.classList.remove('active');
+      if (btnViewSentence) btnViewSentence.classList.remove('active');
+      if (btnViewExcel) btnViewExcel.classList.remove('active');
 
       if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'block', 'important');
       if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
     });
-    if (btnViewSentence) btnViewSentence.addEventListener('click', () => {
+  }
+
+  if (btnViewSentence) {
+    btnViewSentence.addEventListener('click', () => {
+      allEntriesViewMode = 'sentence';
       btnViewSentence.classList.add('active');
-      btnViewNormal.classList.remove('active');
+      if (btnViewNormal) btnViewNormal.classList.remove('active');
+      if (btnViewExcel) btnViewExcel.classList.remove('active');
 
       if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'block', 'important');
       if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
     });
+  }
+
+  if (btnViewExcel) {
+    btnViewExcel.addEventListener('click', () => {
+      allEntriesViewMode = 'excel';
+      btnViewExcel.classList.add('active');
+      if (btnViewNormal) btnViewNormal.classList.remove('active');
+      if (btnViewSentence) btnViewSentence.classList.remove('active');
+
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'block', 'important');
+      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
+      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
+
+      updateAllEntriesView();
+    });
+  }
+
+  // Render All Entries in authentic Excel Spreadsheet Grid on Website
+  function renderAllEntriesExcelView(entries) {
+    const container = document.getElementById('all-entries-excel-view');
+    if (!container) return;
+
+    if (!entries || entries.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No records found matching the filters.</div>`;
+      return;
+    }
+
+    const guestSummaries = computeGuestSummariesForExcel(entries);
+
+    // Flatten guest summary cards into row-by-row elements - ALL CAPITAL LETTERS
+    const cardRows = [];
+    guestSummaries.forEach(g => {
+      const upperName = String(g.name || '').toUpperCase();
+      cardRows.push({ type: 'top', text: `GUEST NAME: ${upperName}` });
+      cardRows.push({ type: 'in', text: `TOTAL IN: ${g.totalIn}` });
+      cardRows.push({ type: 'out', text: `TOTAL OUT: ${g.totalOut}` });
+      cardRows.push({ type: 'res', text: `RESULT: ${g.result}` });
+      cardRows.push({ type: 'blank', text: '' });
+    });
+
+    let html = `
+      <div style="overflow-x: auto; max-width: 100%;">
+        <table class="excel-grid-table">
+          <thead>
+            <tr class="excel-col-letter-row">
+              <th class="excel-row-num"></th>
+              <th style="min-width:140px;">A</th>
+              <th style="min-width:90px;">B</th>
+              <th style="min-width:90px;">C</th>
+              <th style="min-width:100px;">D</th>
+              <th style="min-width:130px;">E</th>
+              <th style="min-width:90px;">F</th>
+              <th style="min-width:120px;">G</th>
+              <th style="min-width:200px;">H</th>
+              <th style="min-width:220px;">I</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    // Row 1: Excel Header Row (A to H yellow, Column I card top) - ALL CAPITAL LETTERS
+    const card0 = cardRows[0] || { type: 'blank', text: '' };
+    html += `
+      <tr>
+        <td class="excel-row-num">1</td>
+        <td class="excel-cell excel-header-cell">DATE & TIME</td>
+        <td class="excel-cell excel-header-cell">SURV ID</td>
+        <td class="excel-cell excel-header-cell">TYPE</td>
+        <td class="excel-cell excel-header-cell">AMOUNT</td>
+        <td class="excel-cell excel-header-cell">GUEST NAME</td>
+        <td class="excel-cell excel-header-cell">CARD</td>
+        <td class="excel-cell excel-header-cell">OTHER INFO</td>
+        <td class="excel-cell excel-header-cell">SENTENCE FORMAT</td>
+        <td class="excel-cell excel-guest-card-cell excel-card-top">${escapeHTML(card0.text)}</td>
+      </tr>
+    `;
+
+    // Subsequent data rows
+    const maxRows = Math.max(entries.length, cardRows.length - 1);
+    for (let i = 0; i < maxRows; i++) {
+      const rowNum = i + 2;
+      const e = entries[i] || null;
+      const card = cardRows[i + 1] || null;
+
+      let cardClass = 'excel-cell excel-guest-card-cell';
+      let cardText = '';
+      if (card) {
+        if (card.type === 'top') cardClass += ' excel-card-top';
+        else if (card.type === 'in') cardClass += ' excel-card-in';
+        else if (card.type === 'out') cardClass += ' excel-card-out';
+        else if (card.type === 'res') cardClass += ' excel-card-result';
+        else if (card.type === 'blank') cardClass = 'excel-cell excel-card-blank';
+        cardText = escapeHTML(card.text);
+      } else {
+        cardClass = 'excel-cell excel-card-blank';
+      }
+
+      html += `
+        <tr>
+          <td class="excel-row-num">${rowNum}</td>
+          <td class="excel-cell">${e ? escapeHTML(String((e.datetime || '').replace('T', ' ')).toUpperCase()) : ''}</td>
+          <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.surv || '').toUpperCase()) : ''}</td>
+          <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.type || '').toUpperCase()) : ''}</td>
+          <td class="excel-cell" style="text-align:right;font-weight:700;">${e ? Number(e.amount || 0).toLocaleString() : ''}</td>
+          <td class="excel-cell" style="font-weight:700;">${e ? escapeHTML(String(e.guestname || '').toUpperCase()) : ''}</td>
+          <td class="excel-cell">${e ? escapeHTML(String(e.card || '').toUpperCase()) : ''}</td>
+          <td class="excel-cell">${e ? escapeHTML(String(e.otherinfo || '').toUpperCase()) : ''}</td>
+          <td class="excel-cell" style="color:#0369a1;font-weight:700;">${e ? escapeHTML(String(getEntrySentence(e)).toUpperCase()) : ''}</td>
+          <td class="${cardClass}">${cardText}</td>
+        </tr>
+      `;
+    }
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    container.innerHTML = html;
   }
 
   if(btnExportAll) {
@@ -2576,8 +3238,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (dateVal) {
         sourceEntries = sourceEntries.filter(entry => {
-          if (!entry.datetime) return false;
-          return getBusinessDate(entry.datetime) === dateVal;
+          const entryDate = entry.businessDate || (entry.datetime ? getBusinessDate(entry.datetime) : '');
+          return entryDate === dateVal;
         });
       }
 
@@ -2596,7 +3258,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       }
 
-      exportToExcel(sourceEntries, 'Surveillance_Filtered_Export');
+      exportToExcel(sourceEntries, 'Surveillance_Export', dateVal);
     });
   }
 
@@ -2884,14 +3546,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       container.querySelectorAll('.btn-delete-entry')?.forEach(btn => {
         btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-id'));
-          if (!confirm('Are you sure you want to delete this entry?')) return;
+          if (!(await customConfirm('Are you sure you want to delete this entry?'))) return;
           try {
             const resp = await fetch(`/api/entries?id=${id}`, { method: 'DELETE' });
             const data = await resp.json();
             if (!resp.ok) throw new Error(data.error || 'Delete failed.');
+            showToast('Entry deleted successfully.', 'success');
             await fetchEntries();
           } catch (err) {
-            alert(`Error deleting entry: ${err.message}`);
+            showToast(`Error deleting entry: ${err.message}`, 'error');
           }
         });
       });
@@ -4207,12 +4870,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
   }
 
-  // Warning Modal Close Button Listener
-  const btnCloseBarredWarning = document.getElementById('btn-close-barred-warning');
+  // Warning Modal Close Button Listeners
   const barredWarningModal = document.getElementById('barred-warning-modal');
-  if (btnCloseBarredWarning && barredWarningModal) {
- if (btnCloseBarredWarning) btnCloseBarredWarning.addEventListener('click', () => {
-      barredWarningModal.style.display = 'none';
+  if (barredWarningModal) {
+    const closeBarredElements = barredWarningModal.querySelectorAll('#btn-close-barred-warning, #btn-x-close-barred-warning, #btn-cancel-barred-warning, .modal-close-btn');
+    closeBarredElements.forEach(btn => {
+      btn.addEventListener('click', () => {
+        barredWarningModal.style.display = 'none';
+      });
+    });
+    barredWarningModal.addEventListener('click', (e) => {
+      if (e.target === barredWarningModal) {
+        barredWarningModal.style.display = 'none';
+      }
     });
   }
 

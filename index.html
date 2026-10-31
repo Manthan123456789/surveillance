@@ -323,24 +323,34 @@
         <!-- TOOLBAR: Controls directly below header -->
         <div class="barred-toolbar">
           
-          <!-- LEFT CONTROLS -->
+          <!-- LEFT CONTROLS (ONLY SYMBOL BUTTONS) -->
           <div class="barred-toolbar-left">
-            <!-- Hidden file input for Excel, Word, and PDF -->
-            <input type="file" id="barred-doc-upload" accept=".xlsx, .xls, .csv, .docx, .doc, .pdf, .txt" style="display: none;" />
+            <!-- Hidden file input for Photo, Excel, Word, PDF (Multiple allowed) -->
+            <input type="file" id="barred-doc-upload" accept=".xlsx, .xls, .csv, .docx, .doc, .pdf, .txt, image/*, .png, .jpg, .jpeg, .webp, .bmp" multiple style="display: none;" />
             
-            <!-- IMPORT BUTTON EXCEL AND WORD AND PDF (SYMBOL ONLY) -->
-            <button id="btn-import-barred-doc" class="btn-barred-tool btn-barred-import" title="Import from Excel, Word, or PDF" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
-              <i data-lucide="upload-cloud" style="width: 17px; height: 17px;"></i>
+            <!-- ONLY ONE UPLOAD BUTTON (SYMBOL ONLY) FOR PHOTO, EXCEL, WORD, PDF -->
+            <button id="btn-import-barred-doc" class="btn-barred-tool btn-barred-import" title="Upload (Photo, Excel, Word, PDF)" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="upload-cloud" style="width: 18px; height: 18px;"></i>
             </button>
 
             <!-- ADD BARRED (SYMBOL ONLY) -->
             <button id="btn-open-barred-modal" class="btn-barred-tool btn-barred-add" title="Add Barred Guest" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
-              <i data-lucide="user-plus" style="width: 17px; height: 17px;"></i>
+              <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i>
             </button>
 
             <!-- DELETE ALL (SYMBOL ONLY) -->
             <button id="btn-delete-all-barred" class="btn-barred-tool btn-barred-delete-all" title="Delete All Barred Guests" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
-              <i data-lucide="trash-2" style="width: 17px; height: 17px;"></i>
+              <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+            </button>
+
+            <!-- VIEW TOGGLE: CARDS VIEW (SYMBOL ONLY) -->
+            <button id="btn-barred-view-cards" class="btn-barred-tool active" title="Cards View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="layout-grid" style="width: 18px; height: 18px;"></i>
+            </button>
+
+            <!-- VIEW TOGGLE: EXCEL SPREADSHEET VIEW (SYMBOL ONLY) -->
+            <button id="btn-barred-view-excel" class="btn-barred-tool" title="Excel Workbook View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="file-spreadsheet" style="width: 18px; height: 18px; color: #10b981;"></i>
             </button>
           </div>
 
@@ -362,8 +372,14 @@
 
         <!-- CENTRAL DISPLAY BOX: ONLY CARDS MOVE UP AND DOWN -->
         <div class="barred-central-box">
+          <!-- CARD VIEW -->
           <div id="barred-list-container" class="barred-cards-scroll-area">
             <!-- 3-column cards injected dynamically by JS -->
+          </div>
+
+          <!-- EXCEL SPREADSHEET VIEW -->
+          <div id="barred-excel-view" class="barred-cards-scroll-area excel-sheet-viewer" style="display: none; padding: 12px; overflow: auto;">
+            <!-- Rendered Barred Excel sheet injected dynamically by JS -->
           </div>
         </div>
 
@@ -407,18 +423,25 @@
               </div>
               
               <!-- Right: Photo Upload -->
-              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; border: 2px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; position: relative; justify-content: center; min-height: 200px; cursor: pointer; text-align: center; background: rgba(0,0,0,0.2);" id="barred-photo-box">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; border: 2px dashed rgba(56,189,248,0.4); border-radius: 8px; padding: 14px; position: relative; justify-content: center; min-height: 200px; cursor: pointer; text-align: center; background: rgba(0,0,0,0.35);" id="barred-photo-box">
                 <input type="file" id="barred-photo-input" accept="image/*" style="display: none;" />
-                <div id="barred-photo-placeholder" style="color: var(--text-muted); font-size: 0.9rem;">
-                  <i data-lucide="upload-cloud" style="width: 32px; height: 32px; margin-bottom: 8px;"></i>
-                  <br/>UPLOAD<br/>PHOTO AUTO<br/>FIT THIS BOX
+                <div id="barred-photo-placeholder" style="color: #94a3b8; font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;">
+                  <i data-lucide="camera" style="width: 38px; height: 38px; color: #38bdf8;"></i>
+                  <span style="font-weight: 800; color: #fff; font-size: 0.95rem;">UPLOAD PHOTO</span>
+                  <span style="font-size: 0.75rem; color: #64748b;">(JPG, PNG, WEBP)</span>
+                  <div style="margin-top: 6px; padding: 6px 14px; background: rgba(56,189,248,0.2); border: 1px solid #38bdf8; border-radius: 6px; color: #38bdf8; font-weight: 700; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="image" style="width: 14px; height: 14px;"></i> SELECT PHOTO
+                  </div>
                 </div>
                 <img id="barred-photo-preview" src="" alt="Preview" style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; border-radius: 6px;" />
               </div>
             </form>
           </div>
-          <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: center;">
-            <button type="submit" form="barred-guest-form" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" id="btn-cancel-barred-modal" class="btn-secondary" style="padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff;">
+              CLOSE
+            </button>
+            <button type="submit" form="barred-guest-form" class="btn-primary" style="flex: 1; padding: 10px 20px; font-size: 1.05rem; font-weight: bold; letter-spacing: 1px; display:flex; align-items:center; justify-content:center; gap:8px;">
               <i data-lucide="shield-check" style="width:20px;height:20px;"></i>
               <span>SUBMIT</span>
             </button>
@@ -460,6 +483,11 @@
             <!-- Sentence View Toggle (SYMBOL ONLY) -->
             <button id="btn-view-sentence" class="all-entries-toggle-btn" title="Sentence View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
               <i data-lucide="align-left" style="width:17px;height:17px;"></i>
+            </button>
+
+            <!-- Excel Workbook View Toggle (SYMBOL ONLY) -->
+            <button id="btn-view-excel" class="all-entries-toggle-btn" title="Excel Workbook View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="file-spreadsheet" style="width:17px;height:17px;color:#10b981;"></i>
             </button>
           </div>
           
@@ -506,6 +534,11 @@
           <!-- SENTENCE VIEW CONTENT -->
           <div id="all-entries-list-container" class="all-entries-list all-entries-scroll-area" style="display: none;">
             <!-- All entries sentences will be injected here -->
+          </div>
+
+          <!-- EXCEL WORKBOOK SPREADSHEET VIEW -->
+          <div id="all-entries-excel-view" class="all-entries-scroll-area excel-sheet-viewer" style="display: none; padding: 10px; overflow: auto;">
+            <!-- Rendered Excel sheet HTML -->
           </div>
         </div>
 
@@ -834,24 +867,35 @@
   </div>
 
   <!-- WARNING MODAL: Barred Guest Match -->
-  <div id="barred-warning-modal" class="modal-overlay" style="display: none; z-index: 9999;">
-    <div class="modal-content" style="max-width: 90%; width: 500px; padding: 0; background: var(--bg-color); border: 2px solid var(--danger); box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);">
-      <div class="modal-header" style="background: rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding: 15px 20px; text-align: center;">
-        <h2 style="margin: 0; color: var(--danger); display: flex; align-items: center; justify-content: center; gap: 10px;">
-          <i data-lucide="alert-triangle" style="width: 28px; height: 28px;"></i> WARNING
+  <div id="barred-warning-modal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);">
+    <div class="modal-content" style="max-width: 90%; width: 500px; padding: 0; background: #0f172a; border: 2px solid var(--danger, #ef4444); border-radius: 14px; box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); position: relative; overflow: hidden;">
+      <!-- Top-Right Close "X" Button -->
+      <button type="button" id="btn-x-close-barred-warning" class="modal-close-btn" title="Close" style="position: absolute; top: 12px; right: 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10;">
+        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+      </button>
+
+      <div class="modal-header" style="background: rgba(239, 68, 68, 0.15); border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding: 16px 20px; text-align: center;">
+        <h2 style="margin: 0; color: #ef4444; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800;">
+          <i data-lucide="alert-triangle" style="width: 26px; height: 26px;"></i> BARRED GUEST WARNING
         </h2>
       </div>
-      <div class="modal-body" style="padding: 25px; text-align: center;">
-        <h3 style="margin-top: 0; color: white;" id="barred-warning-name">GUEST NAME</h3>
-        <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 20px;">This guest is on the <strong style="color: var(--danger);">Barred List</strong>.</p>
-        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); text-align: left; margin-bottom: 20px;">
-          <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 4px;">REASON</div>
-          <div style="color: white; font-weight: bold;" id="barred-warning-reason">...</div>
+      <div class="modal-body" style="padding: 24px; text-align: center;">
+        <h3 style="margin-top: 0; color: white; font-size: 1.3rem; margin-bottom: 6px;" id="barred-warning-name">GUEST NAME</h3>
+        <p style="color: #94a3b8; font-size: 1rem; margin-bottom: 18px;">This guest is on the <strong style="color: #ef4444;">Barred List</strong>.</p>
+        <div style="background: rgba(0,0,0,0.35); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); text-align: left; margin-bottom: 22px;">
+          <div style="color: #94a3b8; font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px;">DETAILS & REASON</div>
+          <div style="color: white; font-weight: 600;" id="barred-warning-reason">...</div>
         </div>
-        <button id="btn-close-barred-warning" class="btn-primary" style="width: 100%; padding: 12px; font-weight: bold; background: var(--danger); display:flex; align-items:center; justify-content:center; gap:8px;">
-          <i data-lucide="shield-alert" style="width:18px;height:18px;"></i>
-          <span>ACKNOWLEDGE</span>
-        </button>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button type="button" id="btn-cancel-barred-warning" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+            <span>CLOSE</span>
+          </button>
+          <button type="button" id="btn-close-barred-warning" class="btn-primary" style="flex: 1; padding: 12px; font-weight: 800; background: linear-gradient(135deg, #dc2626, #ef4444); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(239,68,68,0.35);">
+            <i data-lucide="shield-alert" style="width: 17px; height: 17px;"></i>
+            <span>ACKNOWLEDGE</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
