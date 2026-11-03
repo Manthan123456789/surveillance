@@ -24,15 +24,25 @@
   <script src="jszip.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=20">
 </head>
 <body>
 
-  <!-- Background Decorative Mesh -->
+  <!-- Background Decorative Mesh & Surveillance Watermark -->
   <div class="bg-mesh">
     <div class="mesh-sphere sphere-1"></div>
     <div class="mesh-sphere sphere-2"></div>
     <div class="mesh-sphere sphere-3"></div>
+    <div class="surveillance-watermark-overlay">
+      <div class="surveillance-watermark-stamp">
+        <svg class="watermark-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+        <div class="watermark-title">SURVEILLANCE</div>
+        <div class="watermark-subtitle">MONITORING &amp; INTELLIGENCE SYSTEM</div>
+      </div>
+    </div>
   </div>
 
   <!-- LOGIN CONTAINER -->
@@ -918,7 +928,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=50"></script>
+  <script src="app.js?v=51"></script>
 
   <!-- DIRECT PHOTO UPLOADS -->
   <input type="file" id="direct-photo-barred" accept="image/*" style="display:none;" />

@@ -50,6 +50,7 @@
 }
 
 body {
+  background: linear-gradient(rgba(3, 7, 18, 0.70), rgba(11, 15, 25, 0.85)), url('assets/surveillance_watermark_bg.png') center/cover fixed no-repeat;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-body);
@@ -79,6 +80,64 @@ body {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+}
+
+/* ==========================================================================
+   SURVEILLANCE WATERMARK OVERLAY
+   ========================================================================== */
+.surveillance-watermark-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.surveillance-watermark-stamp {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(-12deg);
+  opacity: 0.08;
+  user-select: none;
+  text-align: center;
+  border: 4px dashed rgba(255, 255, 255, 0.4);
+  border-radius: 20px;
+  padding: 24px 48px;
+}
+
+.watermark-shield-icon {
+  width: clamp(70px, 12vw, 130px);
+  height: clamp(70px, 12vw, 130px);
+  stroke: #ffffff;
+  margin-bottom: 8px;
+}
+
+.watermark-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2.6rem, 7vw, 6rem);
+  font-weight: 900;
+  letter-spacing: clamp(10px, 2.5vw, 22px);
+  color: #ffffff;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.watermark-subtitle {
+  font-family: var(--font-body);
+  font-size: clamp(0.75rem, 1.4vw, 1.15rem);
+  font-weight: 800;
+  letter-spacing: clamp(4px, 1vw, 8px);
+  color: #a78bfa;
+  text-transform: uppercase;
+  margin-top: 10px;
 }
 
 .mesh-sphere {
@@ -152,16 +211,16 @@ body {
   justify-content: center;
   min-height: 100vh;
   padding: 24px;
-  background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.8)), url('assets/surveillance_bg.png') center/cover no-repeat;
+  background: transparent !important;
 }
 
 .login-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid var(--glass-border);
+  background: rgba(10, 15, 30, 0.28) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1.5px solid rgba(255, 255, 255, 0.14) !important;
   border-radius: 24px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15) !important;
   width: 100%;
   max-width: 460px;
   padding: 48px 40px;
@@ -172,14 +231,61 @@ body {
   overflow: hidden;
 }
 
+.login-card .input-wrapper input {
+  background: rgba(15, 23, 42, 0.35) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.login-card .input-wrapper input::placeholder {
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.login-card .input-wrapper input:focus {
+  background: rgba(15, 23, 42, 0.55) !important;
+  border-color: #818cf8 !important;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.35), inset 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Fix browser autofill from rendering opaque solid white */
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover,
+.login-card input:-webkit-autofill:focus,
+.login-card input:-webkit-autofill:active {
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+  box-shadow: inset 0 0 30px 30px rgba(15, 23, 42, 0.45) !important;
+}
+
+.login-card .btn-login,
+.login-card button[type="submit"] {
+  background: linear-gradient(135deg, rgba(79, 70, 229, 0.9) 0%, rgba(124, 58, 237, 0.9) 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4) !important;
+  transition: all 0.2s ease;
+}
+
+.login-card .btn-login:hover,
+.login-card button[type="submit"]:hover {
+  background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%) !important;
+  box-shadow: 0 6px 28px rgba(99, 102, 241, 0.6) !important;
+  transform: translateY(-1px);
+}
+
 .login-card::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
-  height: 4px;
-  background: var(--primary-gradient);
+  height: 3px;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
 }
 
 .login-header {
@@ -191,10 +297,13 @@ body {
 }
 
 .logo-icon-wrapper {
-  background: var(--primary-gradient);
+  background: rgba(99, 102, 241, 0.25) !important;
+  border: 1.5px solid rgba(129, 140, 248, 0.4) !important;
   border-radius: 16px;
   padding: 12px;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.4) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;

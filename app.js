@@ -694,22 +694,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // Dynamic Wallpaper Logic
+  // Dynamic Wallpaper Logic with Surveillance Watermark
   const wallpapers = [
-    'assets/surveillance_bg.png',
-    'assets/surveillance_bg_green.png',
-    'assets/surveillance_bg_red.png',
-    'assets/surveillance_bg_orange.png'
+    'assets/surveillance_watermark_bg.png',
+    'assets/surveillance_bg.png'
   ];
 
   function applyUserWallpaper(username) {
     if (!username) {
-      document.body.style.background = '';
+      document.body.style.background = `linear-gradient(rgba(3, 7, 18, 0.70), rgba(11, 15, 25, 0.85)), url('assets/surveillance_watermark_bg.png') center/cover fixed no-repeat`;
       return;
     }
-    // Randomly pick a wallpaper
     const index = Math.floor(Math.random() * wallpapers.length);
-    document.body.style.background = `linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.95)), url('${wallpapers[index]}') center/cover fixed no-repeat`;
+    document.body.style.background = `linear-gradient(rgba(3, 7, 18, 0.70), rgba(11, 15, 25, 0.85)), url('${wallpapers[index]}') center/cover fixed no-repeat`;
   }
 
   // Inactivity auto-logout disabled per user request: user stays logged in permanently
