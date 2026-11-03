@@ -24,7 +24,7 @@
   <script src="jszip.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=12">
 </head>
 <body>
 
@@ -112,16 +112,16 @@
             <i data-lucide="home"></i>
           </button>
 
-          <button id="btn-barred-global" class="btn-nav" title="Barred Guests" style="color: var(--danger);">
+          <button id="btn-barred-global" class="btn-nav btn-danger-nav" title="Barred Guests">
             <i data-lucide="ban"></i>
           </button>
           <button id="btn-admin-users" class="btn-nav btn-admin-style" title="Add Member" style="display: none !important;">
             <i data-lucide="user-plus"></i>
           </button>
-          <button id="btn-supervisor-log" class="btn-nav btn-supervisor-style" title="Add Entries" style="display: flex; align-items: center; justify-content: center; background: rgba(99,102,241,0.25); border: 1px solid rgba(99,102,241,0.5); color: #c4b5fd; width: 36px; height: 36px; padding: 0; border-radius: 8px;">
-            <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; display: inline-block;">+</span>
+          <button id="btn-supervisor-log" class="btn-nav btn-supervisor-style" title="Add Entries">
+            <span class="btn-plus-symbol">+</span>
           </button>
-          <button id="btn-logout" class="btn-nav" title="Logout">
+          <button id="btn-logout" class="btn-nav btn-logout-nav" title="Logout">
             <i data-lucide="log-out"></i>
           </button>
         </nav>
@@ -131,36 +131,36 @@
     <div class="content-wrapper">
       <!-- HISTORY RECORDS PANEL (HOME VIEW) -->
       <section id="history-table-panel" class="form-panel-card table-panel-card">
-        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div class="panel-header home-panel-header">
+          <div class="panel-header-info">
             <i data-lucide="history" class="panel-icon"></i>
-            <span class="record-badge" id="record-count" style="background: var(--primary-glow); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--primary-glow);">0 Records</span>
-            <span id="home-gaming-date-badge" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+            <span class="record-badge" id="record-count">0 Records</span>
+            <span id="home-gaming-date-badge" class="home-gaming-date-badge">
               <i data-lucide="calendar" style="width: 13px; height: 13px;"></i>
               <span id="home-gaming-date-display">...</span>
             </span>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <div class="search-box" style="position: relative; width: 180px;">
-              <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 15px; height: 15px;"></i>
-              <input type="text" id="table-search" placeholder="Search logs..." style="padding-left: 32px; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12); color: white; border-radius: 6px; padding-top: 6px; padding-bottom: 6px; font-size: 0.85rem;" />
+          <div class="panel-header-actions">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="table-search" placeholder="Search logs..." />
             </div>
             <!-- BUTTON: START NEW GAMING DAY (ONLY SYMBOL) -->
-            <button type="button" id="btn-start-new-day" class="btn-new-day" title="Start New Gaming Day (Change Date)" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; box-shadow: 0 2px 8px rgba(16,185,129,0.3); padding: 0; flex-shrink: 0;">
-              <i data-lucide="calendar-plus" style="width: 17px; height: 17px;"></i>
+            <button type="button" id="btn-start-new-day" class="btn-new-day" title="Start New Gaming Day (Change Date)">
+              <i data-lucide="calendar-plus"></i>
             </button>
             <!-- View Mode Toggles: SENTENCE vs TABLE (ONLY SYMBOLS) -->
-            <button type="button" id="btn-home-view-sentence" class="btn-toggle-view active" title="Sentence View" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: var(--primary); color: white; border: none; padding: 0; flex-shrink: 0;">
-              <i data-lucide="align-left" style="width: 17px; height: 17px;"></i>
+            <button type="button" id="btn-home-view-sentence" class="btn-toggle-view active" title="Sentence View">
+              <i data-lucide="align-left"></i>
             </button>
-            <button type="button" id="btn-home-view-table" class="btn-toggle-view" title="Table View" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: rgba(255,255,255,0.08); color: #94a3b8; border: 1px solid rgba(255,255,255,0.15); padding: 0; flex-shrink: 0;">
-              <i data-lucide="table" style="width: 17px; height: 17px;"></i>
+            <button type="button" id="btn-home-view-table" class="btn-toggle-view" title="Table View">
+              <i data-lucide="table"></i>
             </button>
-            <button id="btn-refresh" class="btn btn-primary" title="Refresh" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;">
-              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+            <button id="btn-refresh" class="btn-home-tool btn-home-refresh" title="Refresh">
+              <i data-lucide="refresh-cw"></i>
             </button>
-            <button id="btn-open-log-modal" class="btn btn-primary btn-add-entries" title="Add Entries" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; width: 34px; height: 34px; padding: 0; border-radius: 8px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(99,102,241,0.5); flex-shrink: 0;">
-              <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; display: inline-block;">+</span>
+            <button id="btn-open-log-modal" class="btn-home-tool btn-home-add" title="Add Entries">
+              <span class="btn-plus-symbol">+</span>
             </button>
           </div>
         </div>
@@ -265,30 +265,30 @@
 
       <!-- MAJOR PANEL -->
       <section id="major-panel-card" class="form-panel-card hidden-panel" style="display: none !important;">
-        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; gap: 10px; flex-wrap: wrap;">
+        <div class="panel-header major-panel-header">
           <!-- Left: View Each Entries By Guest Name Button (ONLY in Major Patron - SYMBOL ONLY) -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: flex-start;">
-            <button id="btn-toggle-major-view" class="btn btn-secondary" title="View Entries By Guest Name" style="width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.12); color: #c4b5fd; cursor: pointer; padding: 0;">
-              <i data-lucide="list" style="width: 18px; height: 18px; color: #a78bfa;"></i>
+          <div class="major-header-left">
+            <button id="btn-toggle-major-view" class="btn btn-secondary major-tool-btn" title="View Entries By Guest Name">
+              <i data-lucide="list" style="color: #a78bfa;"></i>
               <span id="btn-toggle-major-view-text" style="display:none;"></span>
             </button>
           </div>
           <!-- Center: Title -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <div class="major-header-title">
             <i data-lucide="star" class="panel-icon" style="color: #fbbf24;"></i>
-            <h2 style="margin: 0; white-space: nowrap; font-size: 1.4rem; font-weight: 800; letter-spacing: 1px;">MAJOR PATRON</h2>
+            <h2>MAJOR PATRON</h2>
           </div>
           <!-- Right: Search & Refresh -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-            <div class="search-box" style="position: relative; width: 280px; max-width: 100%;">
-              <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 16px; height: 16px;"></i>
-              <input type="text" id="major-search" placeholder="Search patron..." style="padding-left: 38px; width: 100%; box-sizing: border-box; height: 38px;" />
+          <div class="major-header-actions">
+            <div class="search-box">
+              <i data-lucide="search"></i>
+              <input type="text" id="major-search" placeholder="Search patron..." />
             </div>
-            <button id="btn-major-search-action" class="btn btn-primary" title="Search Patron" style="width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
-              <i data-lucide="search" style="width: 17px; height: 17px;"></i>
+            <button id="btn-major-search-action" class="btn btn-primary major-tool-btn" title="Search Patron">
+              <i data-lucide="search"></i>
             </button>
-            <button id="refreshMajor" class="btn btn-secondary" title="Refresh" style="width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
-              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+            <button id="refreshMajor" class="btn btn-secondary major-tool-btn" title="Refresh">
+              <i data-lucide="refresh-cw"></i>
             </button>
           </div>
         </div>
@@ -900,7 +900,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=43"></script>
 
   <!-- DIRECT PHOTO UPLOADS -->
   <input type="file" id="direct-photo-barred" accept="image/*" style="display:none;" />

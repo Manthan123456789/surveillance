@@ -5132,19 +5132,42 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Window resize handler: Dynamically auto-fit layout when page size increases or decreases
+  function applyAutoFit() {
+    const w = window.innerWidth;
+    const body = document.body;
+    if (w <= 680) {
+      body.classList.add('compact-view');
+    } else {
+      body.classList.remove('compact-view');
+    }
+    if (w <= 420) {
+      body.classList.add('ultra-compact-view');
+    } else {
+      body.classList.remove('ultra-compact-view');
+    }
+
+    const wrapper = document.querySelector('.content-wrapper');
+    if (wrapper) {
+      wrapper.style.maxWidth = '100%';
+      wrapper.style.width = '100%';
+      wrapper.style.height = '100%';
+      wrapper.style.flex = '1 1 0';
+    }
+    if (window.lucide) {
+      try {
+        lucide.createIcons();
+      } catch (e) {}
+    }
+  }
+
+  // Initial call on page load
+  applyAutoFit();
+
   let autoFitResizeTimer = null;
   window.addEventListener('resize', () => {
+    requestAnimationFrame(applyAutoFit);
     if (autoFitResizeTimer) clearTimeout(autoFitResizeTimer);
-    autoFitResizeTimer = setTimeout(() => {
-      const wrapper = document.querySelector('.content-wrapper');
-      if (wrapper) {
-        wrapper.style.maxWidth = '100%';
-        wrapper.style.width = '100%';
-        wrapper.style.height = '100%';
-        wrapper.style.flex = '1 1 0';
-      }
-      if (window.lucide) lucide.createIcons();
-    }, 100);
+    autoFitResizeTimer = setTimeout(applyAutoFit, 60);
   });
 });
 
