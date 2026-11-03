@@ -1748,7 +1748,7 @@ const server = http.createServer((req, res) => {
         'Expires': '0',
         'Surrogate-Control': 'no-store'
       });
-      res.end(content, 'utf-8');
+      res.end(content);
     }
   });
 });
