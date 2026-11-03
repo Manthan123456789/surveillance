@@ -556,6 +556,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (allEntriesExcelView) {
         allEntriesExcelView.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No records found matching the filters.</div>`;
       }
+      const allEntriesGuestwiseView = document.getElementById('all-entries-guestwise-view');
+      if (allEntriesGuestwiseView) {
+        allEntriesGuestwiseView.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No records found matching the filters.</div>`;
+      }
       return;
     }
 
@@ -640,6 +644,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     renderAllEntriesExcelView(sourceEntries);
+    renderAllEntriesGuestwiseView(sourceEntries);
+
+    const allEntriesNormalView = document.getElementById('all-entries-normal-view');
+    const allEntriesExcelView = document.getElementById('all-entries-excel-view');
+    const allEntriesGuestwiseView = document.getElementById('all-entries-guestwise-view');
+
+    if (allEntriesViewMode === 'table') {
+      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'block', 'important');
+      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
+    } else if (allEntriesViewMode === 'sentence') {
+      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'block', 'important');
+      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
+    } else if (allEntriesViewMode === 'excel') {
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'block', 'important');
+      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
+      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
+    } else if (allEntriesViewMode === 'guestwise') {
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'block', 'important');
+      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
+      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
+    }
   }
 
   // Switch App Views
@@ -3119,13 +3150,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // View Toggle Logic for All Entries Panel (Table vs Sentence vs Excel Workbook View)
+  // View Toggle Logic for All Entries Panel (Table vs Sentence vs Excel vs Guest Wise)
   const btnViewNormal = document.getElementById('btn-view-normal');
   const btnViewSentence = document.getElementById('btn-view-sentence');
   const btnViewExcel = document.getElementById('btn-view-excel');
+  const btnViewGuestwise = document.getElementById('btn-view-guestwise');
+
   const allEntriesNormalView = document.getElementById('all-entries-normal-view');
   const allEntriesExcelView = document.getElementById('all-entries-excel-view');
-  let allEntriesViewMode = 'table'; // 'table' | 'sentence' | 'excel'
+  const allEntriesGuestwiseView = document.getElementById('all-entries-guestwise-view');
+  let allEntriesViewMode = 'table'; // 'table' | 'sentence' | 'excel' | 'guestwise'
+
+  const expandedGuestwiseNames = new Set();
 
   if (btnViewNormal) {
     btnViewNormal.addEventListener('click', () => {
@@ -3133,10 +3169,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnViewNormal.classList.add('active');
       if (btnViewSentence) btnViewSentence.classList.remove('active');
       if (btnViewExcel) btnViewExcel.classList.remove('active');
+      if (btnViewGuestwise) btnViewGuestwise.classList.remove('active');
 
       if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'block', 'important');
       if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
       if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
     });
   }
 
@@ -3146,10 +3184,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnViewSentence.classList.add('active');
       if (btnViewNormal) btnViewNormal.classList.remove('active');
       if (btnViewExcel) btnViewExcel.classList.remove('active');
+      if (btnViewGuestwise) btnViewGuestwise.classList.remove('active');
 
       if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'block', 'important');
       if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
       if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
     });
   }
 
@@ -3159,10 +3199,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       btnViewExcel.classList.add('active');
       if (btnViewNormal) btnViewNormal.classList.remove('active');
       if (btnViewSentence) btnViewSentence.classList.remove('active');
+      if (btnViewGuestwise) btnViewGuestwise.classList.remove('active');
 
       if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'block', 'important');
       if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
       if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
+
+      updateAllEntriesView();
+    });
+  }
+
+  if (btnViewGuestwise) {
+    btnViewGuestwise.addEventListener('click', () => {
+      allEntriesViewMode = 'guestwise';
+      btnViewGuestwise.classList.add('active');
+      if (btnViewNormal) btnViewNormal.classList.remove('active');
+      if (btnViewSentence) btnViewSentence.classList.remove('active');
+      if (btnViewExcel) btnViewExcel.classList.remove('active');
+
+      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'block', 'important');
+      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
+      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
+      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
 
       updateAllEntriesView();
     });
@@ -3279,6 +3338,222 @@ document.addEventListener('DOMContentLoaded', async () => {
     `;
 
     container.innerHTML = html;
+  }
+
+  // Render All Entries by Guest Wise View
+  function renderAllEntriesGuestwiseView(entries) {
+    const container = document.getElementById('all-entries-guestwise-view');
+    if (!container) return;
+
+    if (!entries || entries.length === 0) {
+      container.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No records found matching the filters.</div>`;
+      return;
+    }
+
+    // Group entries by Guest Name
+    const guestMap = {};
+    entries.forEach(e => {
+      const rawName = (e.guestname || 'UNKNOWN').trim();
+      const nameUpper = rawName.toUpperCase();
+      if (!guestMap[nameUpper]) {
+        guestMap[nameUpper] = {
+          name: nameUpper,
+          totalIn: 0,
+          totalOut: 0,
+          result: 0,
+          entries: []
+        };
+      }
+      guestMap[nameUpper].entries.push(e);
+
+      const t = (e.type || '').toUpperCase().trim();
+      const amt = Number(e.amount) || 0;
+      if (isTotalInType(t)) {
+        guestMap[nameUpper].totalIn += amt;
+      } else if (isTotalOutType(t)) {
+        guestMap[nameUpper].totalOut += amt;
+      }
+    });
+
+    const guestList = Object.values(guestMap);
+    guestList.forEach(g => {
+      g.result = g.totalOut - g.totalIn;
+      g.entries.sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
+    });
+    // Sort guests alphabetically by name
+    guestList.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Top Header with Expand/Collapse All
+    let html = `
+      <div class="guestwise-top-bar">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <i data-lucide="users" style="width: 19px; height: 19px; color: #a78bfa;"></i>
+          <span style="font-weight: 800; font-size: 0.95rem; color: #ffffff; letter-spacing: 0.5px;">ENTRIES BY GUEST WISE</span>
+          <span style="font-size: 0.78rem; background: rgba(167, 139, 250, 0.2); color: #c4b5fd; padding: 2px 10px; border-radius: 12px; font-weight: 700;">
+            ${guestList.length} ${guestList.length === 1 ? 'Guest' : 'Guests'}
+          </span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button type="button" id="btn-guestwise-toggle-all" class="btn-guestwise-action">
+            Expand All
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Render Guest Cards
+    guestList.forEach(g => {
+      const isNegative = g.result < 0;
+      const resultColorClass = isNegative ? 'text-red' : (g.result > 0 ? 'text-green' : 'text-neutral');
+      let formattedResult = formatCurrency(Math.abs(g.result));
+      if (isNegative) {
+        formattedResult = '-' + formattedResult;
+      } else if (g.result > 0) {
+        formattedResult = '+' + formattedResult;
+      } else {
+        formattedResult = '₹0';
+      }
+
+      const isOpen = expandedGuestwiseNames.has(g.name);
+      const openClass = isOpen ? ' is-open' : '';
+      const bodyDisplay = isOpen ? 'display: flex;' : 'display: none;';
+
+      // Build Sentence Rows for this guest
+      const sentencesHtml = g.entries.map(e => {
+        const t = (e.type || '').toUpperCase();
+        const isCredit = isTotalInType(t);
+        const borderCol = isCredit ? '#10b981' : '#ef4444';
+        const amtColor = isCredit ? '#10b981' : '#ef4444';
+        const time = e.datetime ? e.datetime.replace('T', ' ').slice(11, 16) : '';
+        const sentence = getEntrySentence(e);
+
+        return `
+          <div class="guestwise-sentence-item" style="border-left-color: ${borderCol};">
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 1;">
+              ${time ? `<span style="font-size: 0.8rem; color: #94a3b8; font-family: monospace; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">${escapeHTML(time)}</span>` : ''}
+              <span style="font-weight: 700; color: #f8fafc; font-size: 0.95rem; line-height: 1.4;">${sentence}</span>
+            </div>
+            <div style="font-weight: 800; font-family: monospace; font-size: 1.05rem; color: ${amtColor}; white-space: nowrap; margin-left: 10px;">
+              ${formatCurrency(e.amount)}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      html += `
+        <div class="guestwise-card${openClass}" data-guest="${escapeHTML(g.name)}">
+          <!-- Clickable Header: Displays GUEST NAME -->
+          <div class="guestwise-header" title="Click to view all entries and result for ${escapeHTML(g.name)}">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(167, 139, 250, 0.15); display: flex; align-items: center; justify-content: center; color: #a78bfa; flex-shrink: 0;">
+                <i data-lucide="user" style="width: 18px; height: 18px;"></i>
+              </div>
+              <div>
+                <div class="guestwise-name">${escapeHTML(g.name)}</div>
+                <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 600;">
+                  ${g.entries.length} ${g.entries.length === 1 ? 'TRANSACTION' : 'TRANSACTIONS'}
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 16px;">
+              <div style="text-align: right;">
+                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">RESULT: </span>
+                <strong class="${resultColorClass}" style="font-family: monospace; font-size: 1.05rem; margin-left: 4px;">${formattedResult}</strong>
+              </div>
+              <i data-lucide="chevron-down" class="guestwise-chevron" style="width: 20px; height: 20px; color: #94a3b8;"></i>
+            </div>
+          </div>
+
+          <!-- Expanded Body: Displays Result Stats & All Entries in Sentence Form -->
+          <div class="guestwise-body" style="${bodyDisplay}">
+            <!-- Result and Totals Summary Strip -->
+            <div class="guestwise-summary-strip">
+              <div class="guestwise-stat-box" style="background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25);">
+                <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL IN</div>
+                <div style="font-size: 1.15rem; font-weight: 800; color: #38bdf8; font-family: monospace;">${formatCurrency(g.totalIn)}</div>
+              </div>
+              <div class="guestwise-stat-box" style="background: rgba(251, 146, 60, 0.08); border-color: rgba(251, 146, 60, 0.25);">
+                <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL OUT</div>
+                <div style="font-size: 1.15rem; font-weight: 800; color: #fb923c; font-family: monospace;">${formatCurrency(g.totalOut)}</div>
+              </div>
+              <div class="guestwise-stat-box" style="background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.15);">
+                <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">RESULT</div>
+                <div class="${resultColorClass}" style="font-size: 1.15rem; font-weight: 800; font-family: monospace;">${formattedResult}</div>
+              </div>
+            </div>
+
+            <!-- Sentence Form List Header -->
+            <div style="font-size: 0.78rem; color: #a78bfa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">
+              TRANSACTIONS IN SENTENCE FORM:
+            </div>
+
+            <!-- List of All Entries for this guest in Sentence Form -->
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              ${sentencesHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons();
+
+    // Attach click handlers to headers
+    container.querySelectorAll('.guestwise-header').forEach(header => {
+      header.addEventListener('click', () => {
+        const card = header.closest('.guestwise-card');
+        if (!card) return;
+        const gName = card.getAttribute('data-guest');
+        const body = card.querySelector('.guestwise-body');
+        const isCurrentlyOpen = card.classList.contains('is-open');
+
+        if (isCurrentlyOpen) {
+          card.classList.remove('is-open');
+          if (body) body.style.display = 'none';
+          expandedGuestwiseNames.delete(gName);
+        } else {
+          card.classList.add('is-open');
+          if (body) body.style.display = 'flex';
+          expandedGuestwiseNames.add(gName);
+        }
+
+        // Update toggle all button text if present
+        const toggleAllBtn = container.querySelector('#btn-guestwise-toggle-all');
+        if (toggleAllBtn) {
+          const allCards = container.querySelectorAll('.guestwise-card');
+          const allOpen = Array.from(allCards).every(c => c.classList.contains('is-open'));
+          toggleAllBtn.textContent = allOpen ? 'Collapse All' : 'Expand All';
+        }
+      });
+    });
+
+    // Attach Toggle All click handler
+    const btnToggleAll = container.querySelector('#btn-guestwise-toggle-all');
+    if (btnToggleAll) {
+      const allCards = container.querySelectorAll('.guestwise-card');
+      const allOpen = allCards.length > 0 && Array.from(allCards).every(c => c.classList.contains('is-open'));
+      btnToggleAll.textContent = allOpen ? 'Collapse All' : 'Expand All';
+
+      btnToggleAll.addEventListener('click', () => {
+        const currentlyAllOpen = Array.from(container.querySelectorAll('.guestwise-card')).every(c => c.classList.contains('is-open'));
+        container.querySelectorAll('.guestwise-card').forEach(c => {
+          const gName = c.getAttribute('data-guest');
+          const b = c.querySelector('.guestwise-body');
+          if (currentlyAllOpen) {
+            c.classList.remove('is-open');
+            if (b) b.style.display = 'none';
+            expandedGuestwiseNames.delete(gName);
+          } else {
+            c.classList.add('is-open');
+            if (b) b.style.display = 'flex';
+            expandedGuestwiseNames.add(gName);
+          }
+        });
+        btnToggleAll.textContent = currentlyAllOpen ? 'Expand All' : 'Collapse All';
+      });
+    }
   }
 
   if(btnExportAll) {
