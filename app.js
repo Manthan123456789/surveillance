@@ -4205,6 +4205,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ==========================================================================
+  // SYMBOL-ONLY SEARCH BUTTONS (TOGGLE & EXPAND)
+  // "FOR SEARCH BUTTON USE ONLY SYMBOL"
+  // ==========================================================================
+  function setupSearchSymbolToggle(btnId, wrapId, inputId) {
+    const btn = document.getElementById(btnId);
+    const wrap = document.getElementById(wrapId);
+    const input = document.getElementById(inputId);
+    if (!btn || !wrap || !input) return;
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = wrap.classList.contains('open');
+      if (isOpen) {
+        if (input.value.trim() !== '') {
+          input.value = '';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        wrap.classList.remove('open');
+      } else {
+        wrap.classList.add('open');
+        setTimeout(() => input.focus(), 60);
+      }
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        wrap.classList.remove('open');
+        btn.focus();
+      }
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!wrap.contains(e.target) && input.value.trim() === '') {
+        wrap.classList.remove('open');
+      }
+    });
+  }
+
+  setupSearchSymbolToggle('btn-toggle-home-search', 'home-search-wrap', 'table-search');
+  setupSearchSymbolToggle('btn-major-search-action', 'major-search-wrap', 'major-search');
+  setupSearchSymbolToggle('btn-toggle-barred-search', 'barred-search-wrap', 'barred-search');
+  setupSearchSymbolToggle('btn-toggle-all-search', 'all-entries-search-wrap', 'all-entries-search');
+
   // Manual Refresh Button
   if (btnRefresh) {
     btnRefresh.addEventListener('click', () => {
@@ -5135,7 +5181,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function applyAutoFit() {
     const w = window.innerWidth;
     const body = document.body;
-    if (w <= 680) {
+    if (w <= 600) {
       body.classList.add('compact-view');
     } else {
       body.classList.remove('compact-view');
@@ -5150,8 +5196,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (wrapper) {
       wrapper.style.maxWidth = '100%';
       wrapper.style.width = '100%';
-      wrapper.style.height = '100%';
       wrapper.style.flex = '1 1 0';
+      wrapper.style.minHeight = '0';
     }
     if (window.lucide) {
       try {
