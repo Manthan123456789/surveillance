@@ -2648,6 +2648,136 @@ document.addEventListener('DOMContentLoaded', async () => {
     );
   }
 
+  // =========================================================================
+  // SMART GUEST NAME NORMALIZATION & SIMILARITY MATCHER
+  // Automatically groups name variations of the same patron:
+  // e.g. MANTHAN GOSAVI <-> GOSAVI MANTHAN <-> MANTHAN G <-> G MANTHAN <-> M GOSAVI
+  // =========================================================================
+  function cleanGuestTokens(str) {
+    if (!str) return [];
+    return String(str).toUpperCase()
+      .replace(/[^A-Z0-9\s]/g, ' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+  }
+
+  function matchGuestTokenPair(t1, t2) {
+    if (t1 === t2) return true;
+    if (t1.length === 1 || t2.length === 1) {
+      return t1[0] === t2[0];
+    }
+    return false;
+  }
+
+  function areGuestNamesSimilar(nameA, nameB) {
+    const tokA = cleanGuestTokens(nameA);
+    const tokB = cleanGuestTokens(nameB);
+    if (!tokA.length || !tokB.length) return false;
+
+    // Exact string match after token cleaning
+    if (tokA.join(' ') === tokB.join(' ')) return true;
+
+    // Same words in any order (e.g. MANTHAN GOSAVI vs GOSAVI MANTHAN)
+    const sortedA = [...tokA].sort().join(' ');
+    const sortedB = [...tokB].sort().join(' ');
+    if (sortedA === sortedB) return true;
+
+    // 2 tokens vs 2 tokens:
+    // e.g. MANTHAN GOSAVI vs MANTHAN G, G MANTHAN, M GOSAVI, GOSAVI M
+    if (tokA.length === 2 && tokB.length === 2) {
+      const matchDirect = matchGuestTokenPair(tokA[0], tokB[0]) && matchGuestTokenPair(tokA[1], tokB[1]);
+      const matchSwapped = matchGuestTokenPair(tokA[0], tokB[1]) && matchGuestTokenPair(tokA[1], tokB[0]);
+      if (matchDirect || matchSwapped) return true;
+    }
+
+    // 1 token vs 2 tokens: e.g. MANTHAN vs MANTHAN GOSAVI or GOSAVI vs MANTHAN GOSAVI
+    if ((tokA.length === 1 && tokB.length === 2) || (tokA.length === 2 && tokB.length === 1)) {
+      const single = tokA.length === 1 ? tokA[0] : tokB[0];
+      const double = tokA.length === 1 ? tokB : tokA;
+      if (single.length >= 3) {
+        if ((double[0].length >= 3 && single === double[0]) || (double[1].length >= 3 && single === double[1])) {
+          return true;
+        }
+      }
+    }
+
+    // 3 tokens vs 2 tokens: e.g. MANTHAN R GOSAVI vs MANTHAN GOSAVI
+    if ((tokA.length === 3 && tokB.length === 2) || (tokA.length === 2 && tokB.length === 3)) {
+      const three = tokA.length === 3 ? tokA : tokB;
+      const two = tokA.length === 3 ? tokB : tokA;
+      const matchFirstLast = (matchGuestTokenPair(three[0], two[0]) && matchGuestTokenPair(three[2], two[1])) ||
+                             (matchGuestTokenPair(three[0], two[1]) && matchGuestTokenPair(three[2], two[0]));
+      if (matchFirstLast) return true;
+    }
+
+    return false;
+  }
+
+  function getGuestNameScore(name) {
+    const tokens = cleanGuestTokens(name);
+    let score = 0;
+    tokens.forEach(t => {
+      if (t.length > 1) score += t.length * 10;
+      else score += 1;
+    });
+    return score;
+  }
+
+  // Consolidates entries into unique guest clusters (same patron under one box)
+  function clusterGuestEntries(entries) {
+    const clusters = [];
+
+    entries.forEach(e => {
+      const raw = (e.guestname || 'UNKNOWN').trim();
+      if (!raw) return;
+
+      let targetCluster = null;
+      for (const cluster of clusters) {
+        for (const existingName of cluster.names) {
+          if (areGuestNamesSimilar(raw, existingName)) {
+            targetCluster = cluster;
+            break;
+          }
+        }
+        if (targetCluster) break;
+      }
+
+      if (!targetCluster) {
+        targetCluster = {
+          name: raw.toUpperCase(),
+          names: new Set([raw.toUpperCase()]),
+          totalIn: 0,
+          totalOut: 0,
+          result: 0,
+          entries: []
+        };
+        clusters.push(targetCluster);
+      } else {
+        targetCluster.names.add(raw.toUpperCase());
+        // Pick the most complete name as the canonical display name
+        if (getGuestNameScore(raw) > getGuestNameScore(targetCluster.name)) {
+          targetCluster.name = raw.toUpperCase();
+        }
+      }
+
+      targetCluster.entries.push(e);
+      const t = (e.type || '').toUpperCase().trim();
+      const amt = Number(e.amount) || 0;
+      if (isTotalInType(t)) {
+        targetCluster.totalIn += amt;
+      } else if (isTotalOutType(t)) {
+        targetCluster.totalOut += amt;
+      }
+    });
+
+    clusters.forEach(c => {
+      c.result = c.totalOut - c.totalIn;
+    });
+
+    return clusters;
+  }
+
   // Render Major
   function renderMajor() {
     if(!majorListContainer) return;
@@ -2670,41 +2800,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // Group strictly by Guest Name (case-insensitive deduplication, EXACTLY ONE box per guest name)
-    const guestMap = {}; // key: UPPERCASE guest name
-
+    // Group strictly by Guest Name with Smart Clustering (combines MANTHAN GOSAVI, GOSAVI MANTHAN, MANTHAN G, G MANTHAN, M GOSAVI)
     const currentEntries = allEntries.filter(isEntryForToday);
-
-    currentEntries.forEach(e => {
-      const rawGuest = (e.guestname || '').trim();
-      if (!rawGuest) return;
-      const key = rawGuest.toUpperCase();
-
-      if (!guestMap[key]) {
-        guestMap[key] = {
-          name: rawGuest.toUpperCase(),
-          entries: [],
-          totalIn: 0,
-          totalOut: 0
-        };
-      }
-
-      const amt = Number(e.amount) || 0;
-      const t = e.type || '';
-
-      if (isTotalInType(t)) {
-        guestMap[key].totalIn += amt;
-      } else if (isTotalOutType(t)) {
-        guestMap[key].totalOut += amt;
-      }
-
-      guestMap[key].entries.push(e);
+    const guestClusters = clusterGuestEntries(currentEntries);
+    const guestMap = {};
+    guestClusters.forEach(g => {
+      guestMap[g.name] = g;
+      g.names.forEach(alias => {
+        guestMap[alias] = g;
+      });
     });
 
     // Filter guests matching search query
-    let guestList = Object.values(guestMap);
+    let guestList = guestClusters;
     if (query) {
-      guestList = guestList.filter(g => g.name.toLowerCase().includes(query));
+      guestList = guestList.filter(g => {
+        return g.name.toLowerCase().includes(query) || Array.from(g.names).some(n => n.toLowerCase().includes(query));
+      });
     }
 
     // -------------------------------------------------------------
@@ -2968,27 +3080,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateAllEntriesView();
   }
 
-  // Excel Export Helper using SheetJS
+  // Excel Export Helper using SheetJS with Smart Clustering
   function computeGuestSummariesForExcel(entries) {
-    const guestMap = {};
-    entries.forEach(e => {
-      const rawName = (e.guestname || '').trim();
-      if (!rawName) return;
-      const nameUpper = rawName.toUpperCase();
-      if (!guestMap[nameUpper]) {
-        guestMap[nameUpper] = { name: nameUpper, totalIn: 0, totalOut: 0, result: 0 };
-      }
-      const t = (e.type || '').toUpperCase().trim();
-      const amt = Number(e.amount) || 0;
-      if (['CASHIN', 'C/IN', 'ISSUE', 'KEYIN'].includes(t) || t.includes('IN') || t.includes('ISSUE')) {
-        guestMap[nameUpper].totalIn += amt;
-      } else if (['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT'].includes(t) || t.includes('OUT') || t.includes('DEP')) {
-        guestMap[nameUpper].totalOut += amt;
-      }
-    });
-
-    const guestList = Object.values(guestMap);
-    guestList.forEach(g => { g.result = g.totalOut - g.totalIn; });
+    const guestList = clusterGuestEntries(entries);
     guestList.sort((a, b) => b.totalIn - a.totalIn);
     return guestList;
   }
@@ -3350,34 +3444,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Group entries by Guest Name
-    const guestMap = {};
-    entries.forEach(e => {
-      const rawName = (e.guestname || 'UNKNOWN').trim();
-      const nameUpper = rawName.toUpperCase();
-      if (!guestMap[nameUpper]) {
-        guestMap[nameUpper] = {
-          name: nameUpper,
-          totalIn: 0,
-          totalOut: 0,
-          result: 0,
-          entries: []
-        };
-      }
-      guestMap[nameUpper].entries.push(e);
-
-      const t = (e.type || '').toUpperCase().trim();
-      const amt = Number(e.amount) || 0;
-      if (isTotalInType(t)) {
-        guestMap[nameUpper].totalIn += amt;
-      } else if (isTotalOutType(t)) {
-        guestMap[nameUpper].totalOut += amt;
-      }
-    });
-
-    const guestList = Object.values(guestMap);
+    // Group entries into clustered unique guests (combines name variations like MANTHAN GOSAVI, GOSAVI MANTHAN, MANTHAN G, etc.)
+    const guestList = clusterGuestEntries(entries);
     guestList.forEach(g => {
-      g.result = g.totalOut - g.totalIn;
       g.entries.sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
     });
     // Sort guests alphabetically by name
@@ -3600,26 +3669,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(!adminSendList) return;
     adminSendList.innerHTML = '';
     
-    // Recalculate major entries
-    const guestTotals = {};
+    // Recalculate major entries using smart guest clustering
+    const todayEntries = allEntries.filter(isEntryForToday);
+    const guestClusters = clusterGuestEntries(todayEntries);
 
-    allEntries.forEach(e => {
-      if(!isEntryForToday(e)) return;
-      const g = (e.guestname || 'Unknown').trim();
-      const t = (e.type || '').toUpperCase();
-      let amt = Number(e.amount) || 0;
-      
-      if(guestTotals[g] === undefined) { guestTotals[g] = 0; }
-      
-      // Calculate RESULT = OUT - IN
-      if (['CASHOUT', 'DEPOSIT', 'KEYOUT'].includes(t)) {
-        guestTotals[g] += amt;
-      } else if (['CASHIN', 'ISSUE', 'KEYIN'].includes(t)) {
-        guestTotals[g] -= amt;
-      }
-    });
-
-    for (const [g, result] of Object.entries(guestTotals)) {
+    guestClusters.forEach(gObj => {
+      const g = gObj.name;
+      const result = gObj.result;
       if (Math.abs(result) > 49000) {
         let resultStr = formatCurrency(Math.abs(result));
         if (result < 0) {
@@ -3648,7 +3704,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         row.appendChild(delBtn);
         adminSendList.appendChild(row);
       }
-    }
+    });
     lucide.createIcons();
   }
 
@@ -3673,19 +3729,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // Populate datalists for Card, OtherInfo, and GuestName from existing entries (most recently used first)
+  // Populate datalists for Card, OtherInfo, and GuestName from existing entries (canonical guest names first)
   function populateDataLists(entries) {
-    const guests = [];
     const cards = [];
     const others = [];
 
+    // Clustered canonical guest names
+    const guestClusters = clusterGuestEntries(entries);
+    const guests = guestClusters.map(c => c.name);
+
     // entries is sorted newest first, so iterating collects most recent unique values first
     entries.forEach(e => {
-      const guestVal = (e.guestname || '').trim();
       const cardVal = (e.card || '').trim();
       const otherinfoVal = (e.otherinfo || '').trim();
 
-      if (guestVal && !guests.includes(guestVal)) guests.push(guestVal);
       if (cardVal && !cards.includes(cardVal)) cards.push(cardVal);
       if (otherinfoVal && !others.includes(otherinfoVal)) others.push(otherinfoVal);
     });
