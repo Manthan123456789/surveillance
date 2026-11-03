@@ -31,6 +31,23 @@ const EXPORTS_DIR = path.join(TARGET_DIR, 'EXPORTS');
   }
 });
 
+// Environment Detection: Local development server vs Production (e.g. Render)
+const isRenderOrProduction = Boolean(
+  process.env.RENDER || 
+  process.env.RENDER_SERVICE_ID || 
+  process.env.RENDER_EXTERNAL_URL || 
+  process.env.NODE_ENV === 'production'
+);
+const isLocalServer = !isRenderOrProduction;
+
+// Helper: Get local system date (YYYY-MM-DD) directly from machine clock
+function getSystemLocalDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 // --- INDIAN STANDARD TIME (IST: UTC+05:30) & BUSINESS DATE MANAGEMENT ---
 
 // Helper: Get date & time components in Indian Standard Time (Asia/Kolkata)
@@ -98,7 +115,31 @@ function computeExpiryTimestamp(chosenDateStr, setAtDateObj = new Date()) {
 const STATE_FILE = path.join(TARGET_DIR, 'business_date_state.json');
 const TXT_FILE = path.join(TARGET_DIR, 'business_date.txt');
 
+function saveBusinessDateState(newDate, changeType = 'manual') {
+  const expiryMs = computeExpiryTimestamp(newDate, new Date());
+  const istExpParts = getISTDateParts(new Date(expiryMs));
+  
+  businessDateState = {
+    currentBusinessDate: newDate,
+    validUntilTimestamp: expiryMs,
+    validUntilIST: `${istExpParts.isoDate} 06:00:00 IST`,
+    lastChangeType: changeType,
+    lastChangeAt: new Date().toISOString()
+  };
+  currentBusinessDate = newDate;
+
+  try {
+    fs.writeFileSync(STATE_FILE, JSON.stringify(businessDateState, null, 2), 'utf8');
+    fs.writeFileSync(TXT_FILE, newDate, 'utf8');
+  } catch (err) {
+    console.error('Failed to write business date state:', err);
+  }
+  return businessDateState;
+}
+
 function loadBusinessDateState() {
+  const actualSystemDate = calculateActualBusinessDate();
+
   if (fs.existsSync(STATE_FILE)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
@@ -110,13 +151,13 @@ function loadBusinessDateState() {
     }
   }
 
-  // Fallback / initialization from business_date.txt or actual IST date
+  // Fallback / initialization from business_date.txt or actual IST system date
   let initialDate = '';
   if (fs.existsSync(TXT_FILE)) {
     initialDate = fs.readFileSync(TXT_FILE, 'utf8').trim();
   }
   if (!initialDate || !initialDate.includes('-')) {
-    initialDate = calculateActualBusinessDate();
+    initialDate = actualSystemDate;
   }
 
   const expiryMs = computeExpiryTimestamp(initialDate, new Date());
@@ -139,28 +180,6 @@ function loadBusinessDateState() {
 
 let businessDateState = loadBusinessDateState();
 let currentBusinessDate = businessDateState.currentBusinessDate;
-
-function saveBusinessDateState(newDate, changeType = 'manual') {
-  const expiryMs = computeExpiryTimestamp(newDate, new Date());
-  const istExpParts = getISTDateParts(new Date(expiryMs));
-  
-  businessDateState = {
-    currentBusinessDate: newDate,
-    validUntilTimestamp: expiryMs,
-    validUntilIST: `${istExpParts.isoDate} 06:00:00 IST`,
-    lastChangeType: changeType,
-    lastChangeAt: new Date().toISOString()
-  };
-  currentBusinessDate = newDate;
-
-  try {
-    fs.writeFileSync(STATE_FILE, JSON.stringify(businessDateState, null, 2), 'utf8');
-    fs.writeFileSync(TXT_FILE, newDate, 'utf8');
-  } catch (err) {
-    console.error('Failed to write business date state:', err);
-  }
-  return businessDateState;
-}
 
 function savePersistedBusinessDate(d) {
   return saveBusinessDateState(d, 'manual');
@@ -508,7 +527,7 @@ function saveEntriesToArchive(entries) {
 
 function archiveActiveEntries() {
   const files = fs.existsSync(ENTRIES_DIR) ? fs.readdirSync(ENTRIES_DIR) : [];
-  const jsonFiles = files.filter(f => f.endsWith('.json') && f !== 'users_db.json');
+  const jsonFiles = files.filter(f => f.endsWith('.json') && f !== 'users_db.json' && f !== 'business_date_state.json');
   if (jsonFiles.length === 0) {
     return { archived: false, message: 'No entries to archive.' };
   }
@@ -630,8 +649,9 @@ function checkAndPerformDailyReset(source = 'cron') {
     console.error(`[Daily Reset - ${source}] Scheduled archive failed:`, err);
   }
 
-  // Advance to next business date (the next day after the finished business date)
-  const nextDate = addDaysToDateStr(finishedBusinessDate, 1);
+  // Advance to next business date (system date or the day after finished business date)
+  const actualSystem = calculateActualBusinessDate();
+  const nextDate = (actualSystem !== finishedBusinessDate) ? actualSystem : addDaysToDateStr(finishedBusinessDate, 1);
   saveBusinessDateState(nextDate, 'auto');
   console.log(`[Daily Reset - ${source}] Automatically advanced business date to: ${nextDate}`);
 
@@ -645,6 +665,8 @@ function checkAndPerformDailyReset(source = 'cron') {
 }
 
 function startDailyArchiveJob() {
+  console.log('[Daily Reset] Background cron jobs (0 6 * * * IST), automatic daily resets, and automatic date advancement are fully ENABLED.');
+
   // 1. Check if an auto-reset was missed while server was offline
   try {
     checkAndPerformDailyReset('startup');
@@ -661,7 +683,7 @@ function startDailyArchiveJob() {
     timezone: "Asia/Kolkata"
   });
 
-  // 3. Periodic safety check every 5 minutes (catches wake-ups after cloud host spin-downs)
+  // 3. Periodic safety check every 5 minutes (catches wake-ups after cloud host spin-downs or machine sleep)
   setInterval(() => {
     try {
       checkAndPerformDailyReset('interval-check');
@@ -1320,6 +1342,7 @@ const server = http.createServer((req, res) => {
 
   // GET /api/status
   if (pathname === '/api/status' && req.method === 'GET') {
+    checkAndPerformDailyReset('api-status-poll');
     const istParts = getISTDateParts(new Date());
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
@@ -1392,7 +1415,7 @@ const server = http.createServer((req, res) => {
       const entries = [];
 
       for (const file of files) {
-        if (file.endsWith('.json') && file !== 'users_db.json') {
+        if (file.endsWith('.json') && file !== 'users_db.json' && file !== 'business_date_state.json') {
           try {
             const filePath = path.join(ENTRIES_DIR, file);
             const content = fs.readFileSync(filePath, 'utf8');
@@ -1435,7 +1458,7 @@ const server = http.createServer((req, res) => {
         const files = fs.readdirSync(ENTRIES_DIR);
         let targetFile = null;
         for (const file of files) {
-          if (file.endsWith('.json') && file !== 'users_db.json') {
+          if (file.endsWith('.json') && file !== 'users_db.json' && file !== 'business_date_state.json') {
             try {
               const content = JSON.parse(fs.readFileSync(path.join(ENTRIES_DIR, file), 'utf8'));
               if (content.id === Number(entryId)) {
@@ -1602,7 +1625,7 @@ const server = http.createServer((req, res) => {
       const files = fs.readdirSync(ENTRIES_DIR);
       let targetFile = null;
       for (const file of files) {
-        if (file.endsWith('.json') && file !== 'users_db.json') {
+        if (file.endsWith('.json') && file !== 'users_db.json' && file !== 'business_date_state.json') {
           try {
             const content = JSON.parse(fs.readFileSync(path.join(ENTRIES_DIR, file), 'utf8'));
             if (content.id === Number(entryId)) {
