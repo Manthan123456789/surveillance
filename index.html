@@ -24,7 +24,7 @@
   <script src="jszip.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 
@@ -169,12 +169,6 @@
             </button>
             <button type="button" id="btn-home-view-table" class="btn-toggle-view" title="Table View">
               <i data-lucide="table"></i>
-            </button>
-            <button id="btn-refresh" class="btn-home-tool btn-home-refresh" title="Refresh">
-              <i data-lucide="refresh-cw"></i>
-            </button>
-            <button id="btn-open-log-modal" class="btn-home-tool btn-home-add" title="Add Entries">
-              <span class="btn-plus-symbol">+</span>
             </button>
           </div>
         </div>
@@ -628,18 +622,41 @@
       <div class="modal-body" id="supervisor-log-modal-body" style="padding: 20px;">
         <form id="entry-form" class="horizontal-form" novalidate>
           <div class="form-row" style="flex-wrap: nowrap; padding-bottom: 5px; align-items: flex-start;">
-            <!-- DateTime (Hidden from Form) -->
-            <div class="form-group flex-2" style="display: none;">
-              <label for="datetime">Date &amp; Time</label>
+            <!-- 1. TIME -->
+            <div class="form-group flex-2">
+              <label for="datetime" style="display: none;">Time</label>
               <div class="input-wrapper">
-                <i data-lucide="calendar" class="field-icon"></i>
-                <input type="datetime-local" id="datetime" required>
+                <i data-lucide="clock" class="field-icon"></i>
+                <input type="datetime-local" id="datetime" required style="padding-left: 36px; color: #fff; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; font-size: 0.85rem;">
               </div>
             </div>
 
-            <!-- Hidden CD and Cashier (Removed from view) -->
-            <input type="hidden" id="cd" value="CD-01">
-            <input type="hidden" id="cashier" value="-">
+            <!-- 2. CD -->
+            <div class="form-group flex-1">
+              <label for="cd" style="display: none;">CD</label>
+              <div class="input-wrapper">
+                <i data-lucide="monitor" class="field-icon"></i>
+                <input type="text" id="cd" placeholder="CD" value="CD-01" required style="padding-left: 36px;">
+              </div>
+              <div class="inline-options-list">
+                <div class="inline-option-item">CD-01</div>
+                <div class="inline-option-item">CD-02</div>
+                <div class="inline-option-item">CD-03</div>
+                <div class="inline-option-item">CD-04</div>
+                <div class="inline-option-item">M-CD</div>
+                <div class="inline-option-item">F-CD</div>
+              </div>
+            </div>
+
+            <!-- 3. CASHIER -->
+            <div class="form-group flex-1">
+              <label for="cashier" style="display: none;">Cashier</label>
+              <div class="input-wrapper">
+                <i data-lucide="user-check" class="field-icon"></i>
+                <input type="text" id="cashier" placeholder="CASHIER" autocomplete="off" style="padding-left: 36px;">
+              </div>
+              <div class="inline-options-list" id="cashier-options-grid"></div>
+            </div>
 
             <!-- Type -->
             <div class="form-group flex-1-5">
@@ -770,9 +787,20 @@
             </div>
           </div>
           
-          <!-- Hidden CD and Cashier (Removed from view) -->
-          <input type="hidden" id="edit-cd" value="CD-01">
-          <input type="hidden" id="edit-cashier" value="-">
+          <div style="display: flex; gap: 15px;">
+            <div class="form-group flex-1">
+              <label>CD</label>
+              <div class="input-wrapper">
+                <input type="text" id="edit-cd" value="CD-01" style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label>Cashier</label>
+              <div class="input-wrapper">
+                <input type="text" id="edit-cashier" value="-" style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+          </div>
 
           <div style="display: flex; gap: 15px;">
             <div class="form-group flex-1">
@@ -929,7 +957,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=52"></script>
+  <script src="app.js?v=61"></script>
 
   <!-- DIRECT PHOTO UPLOADS -->
   <input type="file" id="direct-photo-barred" accept="image/*" style="display:none;" />

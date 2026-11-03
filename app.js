@@ -122,6 +122,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const adminPanelCard = document.getElementById('admin-panel-card');
   const majorPanelCard = document.getElementById('major-panel-card');
   const allEntriesPanelCard = document.getElementById('all-entries-panel-card');
+  let allEntriesViewMode = 'table'; // 'table' | 'sentence' | 'excel' | 'guestwise' | 'custom-entries'
+  let staffList = [];
   
   // DOM Elements - Supervisor / Log Modal
   const btnSupervisorLog = document.getElementById('btn-supervisor-log');
@@ -137,6 +139,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function openLogModal() {
     if (supervisorLogModal) {
       resetFormInputs();
+      if (typeof renderCashierSuggestions === 'function') renderCashierSuggestions('');
       supervisorLogModal.style.display = 'flex';
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -504,6 +507,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // Helper: Synchronize visibility and button states for All Entries views
+  function applyAllEntriesViewMode() {
+    const normal = document.getElementById('all-entries-normal-view');
+    const list = document.getElementById('all-entries-list-container');
+    const excel = document.getElementById('all-entries-excel-view');
+    const guestwise = document.getElementById('all-entries-guestwise-view');
+
+    const btnNormal = document.getElementById('btn-view-normal');
+    const btnSentence = document.getElementById('btn-view-sentence');
+    const btnExcel = document.getElementById('btn-view-excel');
+    const btnGuestwise = document.getElementById('btn-view-guestwise');
+
+    if (btnNormal) btnNormal.classList.toggle('active', allEntriesViewMode === 'table');
+    if (btnSentence) btnSentence.classList.toggle('active', allEntriesViewMode === 'sentence');
+    if (btnExcel) btnExcel.classList.toggle('active', allEntriesViewMode === 'excel');
+    if (btnGuestwise) btnGuestwise.classList.toggle('active', allEntriesViewMode === 'guestwise');
+
+    if (normal) normal.style.setProperty('display', (allEntriesViewMode === 'table' || allEntriesViewMode === 'custom-entries') ? 'block' : 'none', 'important');
+    if (list) list.style.setProperty('display', allEntriesViewMode === 'sentence' ? 'block' : 'none', 'important');
+    if (excel) excel.style.setProperty('display', allEntriesViewMode === 'excel' ? 'block' : 'none', 'important');
+    if (guestwise) guestwise.style.setProperty('display', allEntriesViewMode === 'guestwise' ? 'block' : 'none', 'important');
+  }
+
   // ALL ENTRIES panel view update
   async function updateAllEntriesView() {
     if (!allEntriesDatePicker || !allEntriesSearch) return;
@@ -560,6 +586,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (allEntriesGuestwiseView) {
         allEntriesGuestwiseView.innerHTML = `<div style="text-align:center;padding:40px;color:var(--text-muted);font-weight:700;">No records found matching the filters.</div>`;
       }
+      const allEntriesCustomTableBody = document.getElementById('all-entries-custom-table-body');
+      if (allEntriesCustomTableBody) {
+        allEntriesCustomTableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-muted); font-weight:700;">No records found matching the filters.</td></tr>`;
+      }
+      applyAllEntriesViewMode();
       return;
     }
 
@@ -646,31 +677,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderAllEntriesExcelView(sourceEntries);
     renderAllEntriesGuestwiseView(sourceEntries);
 
-    const allEntriesNormalView = document.getElementById('all-entries-normal-view');
-    const allEntriesExcelView = document.getElementById('all-entries-excel-view');
-    const allEntriesGuestwiseView = document.getElementById('all-entries-guestwise-view');
-
-    if (allEntriesViewMode === 'table') {
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'block', 'important');
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
-    } else if (allEntriesViewMode === 'sentence') {
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'block', 'important');
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
-    } else if (allEntriesViewMode === 'excel') {
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'block', 'important');
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
-    } else if (allEntriesViewMode === 'guestwise') {
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'block', 'important');
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
-    }
+    applyAllEntriesViewMode();
   }
 
   // Switch App Views
@@ -794,7 +801,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (inputCD) inputCD.value = 'CD-01';
     inputType.value     = '';
     inputAmount.value   = '';
-    if (inputCashier) inputCashier.value = '-';
+    if (inputCashier) inputCashier.value = '';
     inputGuestName.value= '';
     inputCard.value     = '';
     inputOtherInfo.value= '';
@@ -1309,8 +1316,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if(btnAllEntriesHome) btnAllEntriesHome.addEventListener('click', showHomePanel);
 
   // Add Entries (Log Modal) Event Listeners
+  const btnAllEntriesAddLog = document.getElementById('btn-all-entries-add-log');
+  const btnOpenAddFromCustom = document.getElementById('btn-open-add-from-custom');
+
   if (btnSupervisorLog) btnSupervisorLog.addEventListener('click', openLogModal);
   if (btnOpenLogModal) btnOpenLogModal.addEventListener('click', openLogModal);
+  if (btnAllEntriesAddLog) btnAllEntriesAddLog.addEventListener('click', openLogModal);
+  if (btnOpenAddFromCustom) btnOpenAddFromCustom.addEventListener('click', openLogModal);
   if (btnCloseLogModal) btnCloseLogModal.addEventListener('click', closeLogModal);
   if (supervisorLogModal) {
     supervisorLogModal.addEventListener('click', (e) => {
@@ -1753,7 +1765,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     tableBody.innerHTML = '<tr><td colspan="100%" style="text-align:center;padding:40px;color:var(--text-muted);">Loading...</td></tr>';
 
-    let staffList = [];
+    staffList = [];
     try {
       const res = await fetch('/api/staff');
       const data = await res.json();
@@ -3241,82 +3253,86 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // View Toggle Logic for All Entries Panel (Table vs Sentence vs Excel vs Guest Wise)
+  // View Toggle Logic for All Entries Panel (Table vs Sentence vs Excel vs Guest Wise vs Custom Entries)
   const btnViewNormal = document.getElementById('btn-view-normal');
   const btnViewSentence = document.getElementById('btn-view-sentence');
   const btnViewExcel = document.getElementById('btn-view-excel');
   const btnViewGuestwise = document.getElementById('btn-view-guestwise');
-
-  const allEntriesNormalView = document.getElementById('all-entries-normal-view');
-  const allEntriesExcelView = document.getElementById('all-entries-excel-view');
-  const allEntriesGuestwiseView = document.getElementById('all-entries-guestwise-view');
-  let allEntriesViewMode = 'table'; // 'table' | 'sentence' | 'excel' | 'guestwise'
+  const btnViewCustomEntries = document.getElementById('btn-view-custom-entries');
 
   const expandedGuestwiseNames = new Set();
 
   if (btnViewNormal) {
-    btnViewNormal.addEventListener('click', () => {
+    btnViewNormal.addEventListener('click', (e) => {
+      e.preventDefault();
       allEntriesViewMode = 'table';
-      btnViewNormal.classList.add('active');
-      if (btnViewSentence) btnViewSentence.classList.remove('active');
-      if (btnViewExcel) btnViewExcel.classList.remove('active');
-      if (btnViewGuestwise) btnViewGuestwise.classList.remove('active');
-
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'block', 'important');
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
     });
   }
 
   if (btnViewSentence) {
-    btnViewSentence.addEventListener('click', () => {
+    btnViewSentence.addEventListener('click', (e) => {
+      e.preventDefault();
       allEntriesViewMode = 'sentence';
-      btnViewSentence.classList.add('active');
-      if (btnViewNormal) btnViewNormal.classList.remove('active');
-      if (btnViewExcel) btnViewExcel.classList.remove('active');
-      if (btnViewGuestwise) btnViewGuestwise.classList.remove('active');
-
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'block', 'important');
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
     });
   }
 
   if (btnViewExcel) {
-    btnViewExcel.addEventListener('click', () => {
+    btnViewExcel.addEventListener('click', (e) => {
+      e.preventDefault();
       allEntriesViewMode = 'excel';
-      btnViewExcel.classList.add('active');
-      if (btnViewNormal) btnViewNormal.classList.remove('active');
-      if (btnViewSentence) btnViewSentence.classList.remove('active');
-      if (btnViewGuestwise) btnViewGuestwise.classList.remove('active');
-
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'block', 'important');
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'none', 'important');
-
+      applyAllEntriesViewMode();
       updateAllEntriesView();
     });
   }
 
   if (btnViewGuestwise) {
-    btnViewGuestwise.addEventListener('click', () => {
+    btnViewGuestwise.addEventListener('click', (e) => {
+      e.preventDefault();
       allEntriesViewMode = 'guestwise';
-      btnViewGuestwise.classList.add('active');
-      if (btnViewNormal) btnViewNormal.classList.remove('active');
-      if (btnViewSentence) btnViewSentence.classList.remove('active');
-      if (btnViewExcel) btnViewExcel.classList.remove('active');
-
-      if (allEntriesGuestwiseView) allEntriesGuestwiseView.style.setProperty('display', 'block', 'important');
-      if (allEntriesNormalView) allEntriesNormalView.style.setProperty('display', 'none', 'important');
-      if (allEntriesListContainer) allEntriesListContainer.style.setProperty('display', 'none', 'important');
-      if (allEntriesExcelView) allEntriesExcelView.style.setProperty('display', 'none', 'important');
-
+      applyAllEntriesViewMode();
       updateAllEntriesView();
     });
   }
+
+  // Delegated click listener across the document to guarantee sub-button triggers work even when clicking inner SVG / path
+  document.addEventListener('click', (e) => {
+    const guestwiseBtn = e.target.closest('#btn-view-guestwise');
+    if (guestwiseBtn) {
+      e.preventDefault();
+      allEntriesViewMode = 'guestwise';
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
+      return;
+    }
+    const excelBtn = e.target.closest('#btn-view-excel');
+    if (excelBtn) {
+      e.preventDefault();
+      allEntriesViewMode = 'excel';
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
+      return;
+    }
+    const sentenceBtn = e.target.closest('#btn-view-sentence');
+    if (sentenceBtn) {
+      e.preventDefault();
+      allEntriesViewMode = 'sentence';
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
+      return;
+    }
+    const normalBtn = e.target.closest('#btn-view-normal');
+    if (normalBtn) {
+      e.preventDefault();
+      allEntriesViewMode = 'table';
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
+      return;
+    }
+  });
 
   // Render All Entries in authentic Excel Spreadsheet Grid on Website
   function renderAllEntriesExcelView(entries) {
@@ -3622,6 +3638,93 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Render All Entries Custom Table View:
+  // Shows ONLY: TIME, CD, CASHIER, TYPE, AMOUNT, GUEST NAME, CARD, OTHER INFO
+  function renderAllEntriesCustomView(entries) {
+    const tableBody = document.getElementById('all-entries-custom-table-body');
+    if (!tableBody) return;
+
+    if (!entries || entries.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:35px; color:var(--text-muted); font-weight:700;">No records found matching the filters.</td></tr>`;
+      return;
+    }
+
+    let rowsHtml = '';
+    entries.forEach(entry => {
+      // 1. TIME: Extract clean HH:MM:SS or HH:MM from datetime
+      let timeStr = '-';
+      if (entry.datetime) {
+        if (entry.datetime.includes('T')) {
+          const tPart = entry.datetime.split('T')[1].split('.')[0];
+          timeStr = tPart.slice(0, 8);
+        } else if (entry.datetime.includes(' ')) {
+          timeStr = entry.datetime.split(' ')[1].slice(0, 8);
+        } else {
+          timeStr = entry.datetime;
+        }
+      }
+
+      // 2. CD: Entry CD or '-'
+      const cdStr = escapeHTML(entry.cd || '-');
+
+      // 3. CASHIER: Entry Cashier or '-'
+      const cashierStr = escapeHTML(entry.cashier || '-');
+
+      // 4. TYPE: Badge with appropriate styling
+      const rawType = (entry.type || '').toUpperCase();
+      let typeBadge = { cls: 'badge-synced', label: rawType || '-' };
+      if (['CASHIN', 'C/IN', 'ISSUE', 'KEYIN', 'BUY IN'].includes(rawType)) {
+        typeBadge = { cls: 'badge-credit', label: rawType };
+      } else if (['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT', 'WIN'].includes(rawType)) {
+        typeBadge = { cls: 'badge-debit', label: rawType };
+      }
+
+      // 5. AMOUNT: Result styling (Plus Green, Minus Red, Zero Neutral)
+      const numAmt = Number(entry.amount) || 0;
+      const isCredit = ['CASHIN', 'C/IN', 'ISSUE', 'KEYIN', 'BUY IN'].includes(rawType);
+      const isDebit = ['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT', 'WIN'].includes(rawType);
+      const amtFormatted = formatCurrency(Math.abs(numAmt));
+      let amtColorClass = 'text-neutral';
+      let signPrefix = '';
+      if (isCredit) {
+        amtColorClass = 'text-green';
+        signPrefix = '+';
+      } else if (isDebit || numAmt < 0) {
+        amtColorClass = 'text-red';
+        signPrefix = '-';
+      }
+
+      // 6. GUEST NAME: Clean uppercase guest name
+      const guestNameStr = escapeHTML(entry.guestname || '-');
+
+      // 7. CARD: Card number or '-'
+      const cardStr = entry.card ? `<code style="background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px; color:#cbd5e1;">${escapeHTML(entry.card)}</code>` : '<span style="color:var(--text-muted)">—</span>';
+
+      // 8. OTHER INFO: Clean other info with tooltip
+      const otherInfoStr = entry.otherinfo ? escapeHTML(entry.otherinfo) : '<span style="color:var(--text-muted)">—</span>';
+
+      rowsHtml += `
+        <tr>
+          <td><strong style="font-family: monospace; font-size: 0.9rem; color: #cbd5e1;">${timeStr}</strong></td>
+          <td><span style="color: #38bdf8; font-weight: 700; font-size: 0.88rem;">${cdStr}</span></td>
+          <td><span style="color: #fbbf24; font-weight: 700; font-size: 0.88rem;">${cashierStr}</span></td>
+          <td><span class="badge ${typeBadge.cls}">${typeBadge.label}</span></td>
+          <td class="table-amount ${amtColorClass}" style="font-weight: 800; font-size: 0.92rem;">${signPrefix}${amtFormatted}</td>
+          <td><strong style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">${guestNameStr}</strong></td>
+          <td>${cardStr}</td>
+          <td title="${escapeHTML(entry.otherinfo || '')}">
+            <div style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${otherInfoStr}
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    tableBody.innerHTML = rowsHtml;
+    lucide.createIcons();
+  }
+
   if(btnExportAll) {
     btnExportAll.addEventListener('click', async () => {
       const dateVal = allEntriesDatePicker ? allEntriesDatePicker.value : '';
@@ -3726,6 +3829,69 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // Collect all known cashier names from entries, defaults and staff
+  function getAllKnownCashiers() {
+    const defaultCashiers = ['C-1', 'C-2', 'C-3', 'C-4'];
+    const fromEntries = (allEntries || [])
+      .map(e => (e.cashier || '').trim())
+      .filter(c => c && c !== '-' && !c.includes('—'));
+
+    let fromStaff = [];
+    try {
+      if (typeof staffList !== 'undefined' && Array.isArray(staffList)) {
+        fromStaff = staffList.map(s => (s.name || s.username || '').trim()).filter(Boolean);
+      }
+    } catch (e) {}
+
+    const map = new Map();
+    [...defaultCashiers, ...fromEntries, ...fromStaff].forEach(name => {
+      const trimmed = name.trim();
+      const upper = trimmed.toUpperCase();
+      if (upper && !map.has(upper)) {
+        map.set(upper, trimmed);
+      }
+    });
+    return Array.from(map.values());
+  }
+
+  // Render cashier dynamic suggestions below input as user types
+  function renderCashierSuggestions(query = '') {
+    const grid = document.getElementById('cashier-options-grid');
+    if (!grid) return;
+    const q = (query || '').trim().toUpperCase();
+    const all = getAllKnownCashiers();
+
+    let matches = all;
+    if (q) {
+      matches = all.filter(c => c.toUpperCase().includes(q));
+      matches.sort((a, b) => {
+        const aStarts = a.toUpperCase().startsWith(q) ? 0 : 1;
+        const bStarts = b.toUpperCase().startsWith(q) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+        return a.localeCompare(b);
+      });
+    }
+
+    if (matches.length === 0) {
+      grid.innerHTML = `<div style="padding: 7px 10px; font-size: 0.72rem; color: var(--text-muted); font-style: italic;">No match "${escapeHTML(q)}" (Press Enter to keep)</div>`;
+      return;
+    }
+
+    grid.innerHTML = matches.slice(0, 12).map(c => {
+      let displayHtml = escapeHTML(c);
+      if (q) {
+        const idx = c.toUpperCase().indexOf(q);
+        if (idx !== -1) {
+          const pre = c.slice(0, idx);
+          const matched = c.slice(idx, idx + q.length);
+          const post = c.slice(idx + q.length);
+          displayHtml = `${escapeHTML(pre)}<span style="color:#38bdf8; font-weight:800; text-decoration:underline;">${escapeHTML(matched)}</span>${escapeHTML(post)}`;
+        }
+      }
+      return `<div class="inline-option-item" data-value="${escapeHTML(c)}">${displayHtml}</div>`;
+    }).join('');
+  }
+
   // Populate datalists for Card, OtherInfo, and GuestName from existing entries (canonical guest names first)
   function populateDataLists(entries) {
     const cards = [];
@@ -3757,13 +3923,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       otherInfoList.innerHTML = others.map(v => `<div class="inline-option-item">${escapeHTML(v)}</div>`).join('');
     }
 
+    renderCashierSuggestions(inputCashier ? inputCashier.value : '');
   }
 
   // Handle click on any inline-option-item to populate the corresponding input
   document.addEventListener('click', (e) => {
-    if (e.target.classList.contains('inline-option-item')) {
-      const value = e.target.getAttribute('data-value') || e.target.textContent;
-      const formGroup = e.target.closest('.form-group');
+    const item = e.target.classList.contains('inline-option-item') ? e.target : e.target.closest('.inline-option-item');
+    if (item) {
+      const value = item.getAttribute('data-value') || item.textContent.trim();
+      const formGroup = item.closest('.form-group');
       if (formGroup) {
         const input = formGroup.querySelector('input[type="text"]');
         if (input) {
@@ -4108,6 +4276,58 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
   });
+
+  // Live dynamic suggestions for Cashier as the user types
+  if (inputCashier) {
+    inputCashier.addEventListener('input', (e) => {
+      renderCashierSuggestions(e.target.value);
+    });
+    inputCashier.addEventListener('focus', () => {
+      renderCashierSuggestions(inputCashier.value);
+    });
+  }
+
+  // Live dynamic suggestions for Guest Name as the user types
+  if (inputGuestName) {
+    inputGuestName.addEventListener('input', (e) => {
+      const q = e.target.value.trim().toUpperCase();
+      const guestnameList = document.getElementById('guestname-options-grid');
+      if (!guestnameList) return;
+      const guestClusters = clusterGuestEntries(allEntries);
+      const allGuests = guestClusters.map(c => c.name);
+      let matches = allGuests;
+      if (q) {
+        matches = allGuests.filter(g => g.toUpperCase().includes(q));
+      }
+      if (matches.length === 0) {
+        guestnameList.innerHTML = `<div style="padding: 7px 10px; font-size: 0.72rem; color: var(--text-muted); font-style: italic;">New guest: "${escapeHTML(q)}"</div>`;
+      } else {
+        guestnameList.innerHTML = matches.slice(0, 12).map(v => {
+          let displayHtml = escapeHTML(v);
+          if (q) {
+            const idx = v.toUpperCase().indexOf(q);
+            if (idx !== -1) {
+              const pre = v.slice(0, idx);
+              const matched = v.slice(idx, idx + q.length);
+              const post = v.slice(idx + q.length);
+              displayHtml = `${escapeHTML(pre)}<span style="color:#38bdf8; font-weight:800; text-decoration:underline;">${escapeHTML(matched)}</span>${escapeHTML(post)}`;
+            }
+          }
+          return `<div class="inline-option-item" data-value="${escapeHTML(v)}">${displayHtml}</div>`;
+        }).join('');
+      }
+    });
+    inputGuestName.addEventListener('focus', () => {
+      if (allEntries && allEntries.length > 0) {
+        const guestClusters = clusterGuestEntries(allEntries);
+        const allGuests = guestClusters.map(c => c.name);
+        const guestnameList = document.getElementById('guestname-options-grid');
+        if (guestnameList && !inputGuestName.value.trim()) {
+          guestnameList.innerHTML = allGuests.slice(0, 12).map(v => `<div class="inline-option-item" data-value="${escapeHTML(v)}">${escapeHTML(v)}</div>`).join('');
+        }
+      }
+    });
+  }
 
   // ==========================================================================
   // QUICK TEXT ENTRY – shared parsers + reusable widget mount
@@ -5513,28 +5733,43 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Window resize handler: Dynamically auto-fit layout when page size increases or decreases
+  // ==========================================================================
+  // MOBILE & DESKTOP AUTO-FIT ENGINE: AUTO-DETECT SCREEN SIZE & REAL-TIME AUTO-FIT
+  // ==========================================================================
   function applyAutoFit() {
-    const w = window.innerWidth;
+    const vv = window.visualViewport;
+    const h = vv ? Math.round(vv.height) : window.innerHeight;
+    const w = vv ? Math.round(vv.width) : window.innerWidth;
+    const docEl = document.documentElement;
     const body = document.body;
-    if (w <= 600) {
-      body.classList.add('compact-view');
-    } else {
-      body.classList.remove('compact-view');
-    }
-    if (w <= 420) {
-      body.classList.add('ultra-compact-view');
-    } else {
-      body.classList.remove('ultra-compact-view');
-    }
 
+    // Dynamically set CSS variables on :root so all containers fit 100% in viewport
+    docEl.style.setProperty('--app-height', `${h}px`);
+    docEl.style.setProperty('--app-width', `${w}px`);
+    docEl.style.setProperty('--vh', `${h * 0.01}px`);
+
+    // Screen classification classes for responsive styling
+    body.classList.toggle('screen-mobile', w <= 768);
+    body.classList.toggle('screen-small', w <= 500);
+    body.classList.toggle('screen-extra-small', w <= 380);
+    body.classList.toggle('screen-short', h <= 650);
+    body.classList.toggle('screen-landscape', w > h && h <= 550);
+
+    // Keep legacy compact classes
+    body.classList.toggle('compact-view', w <= 650);
+    body.classList.toggle('ultra-compact-view', w <= 420);
+
+    // Ensure content wrapper fills exactly 100% available space with 0 document overflow
     const wrapper = document.querySelector('.content-wrapper');
     if (wrapper) {
-      wrapper.style.maxWidth = '100%';
-      wrapper.style.width = '100%';
-      wrapper.style.flex = '1 1 0';
-      wrapper.style.minHeight = '0';
+      wrapper.style.setProperty('width', '100%', 'important');
+      wrapper.style.setProperty('max-width', '100%', 'important');
+      wrapper.style.setProperty('height', 'auto', 'important');
+      wrapper.style.setProperty('min-height', '0', 'important');
+      wrapper.style.setProperty('flex', '1 1 0', 'important');
+      wrapper.style.setProperty('overflow', 'hidden', 'important');
     }
+
     if (window.lucide) {
       try {
         lucide.createIcons();
@@ -5545,12 +5780,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initial call on page load
   applyAutoFit();
 
+  // Multi-event listeners: window resize, orientationchange, visualViewport changes, pageshow
   let autoFitResizeTimer = null;
-  window.addEventListener('resize', () => {
+  function triggerAutoFit() {
     requestAnimationFrame(applyAutoFit);
     if (autoFitResizeTimer) clearTimeout(autoFitResizeTimer);
-    autoFitResizeTimer = setTimeout(applyAutoFit, 60);
+    autoFitResizeTimer = setTimeout(applyAutoFit, 50);
+  }
+
+  window.addEventListener('resize', triggerAutoFit, { passive: true });
+  window.addEventListener('orientationchange', () => {
+    setTimeout(applyAutoFit, 50);
+    setTimeout(applyAutoFit, 200);
   });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', triggerAutoFit, { passive: true });
+    window.visualViewport.addEventListener('scroll', triggerAutoFit, { passive: true });
+  }
+  window.addEventListener('pageshow', applyAutoFit);
 });
 
 

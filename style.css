@@ -3914,13 +3914,14 @@ textarea { text-transform: uppercase; }
 @media (max-width: 1024px) {
   html, body {
     height: 100% !important;
-    height: 100dvh !important;
-    max-height: 100dvh !important;
+    height: var(--app-height, 100dvh) !important;
+    max-height: var(--app-height, 100dvh) !important;
     overflow: hidden !important;
     overflow-y: hidden !important;
     overflow-x: hidden !important;
     position: relative !important;
     width: 100% !important;
+    max-width: 100vw !important;
     margin: 0 !important;
     padding: 0 !important;
     box-sizing: border-box !important;
@@ -3928,15 +3929,19 @@ textarea { text-transform: uppercase; }
 
   #main-view {
     height: 100% !important;
-    height: 100dvh !important;
-    max-height: 100dvh !important;
+    height: var(--app-height, 100dvh) !important;
+    max-height: var(--app-height, 100dvh) !important;
     min-height: 0 !important;
     overflow: hidden !important;
     overflow-y: hidden !important;
+    overflow-x: hidden !important;
     display: flex !important;
     flex-direction: column !important;
     width: 100% !important;
+    max-width: 100vw !important;
     box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .app-header {
@@ -3965,12 +3970,12 @@ textarea { text-transform: uppercase; }
 
   .content-wrapper {
     flex: 1 1 0 !important;
-    height: 100% !important;
+    height: auto !important;
     max-height: 100% !important;
     min-height: 0 !important;
     overflow: hidden !important;
     overflow-y: hidden !important;
-    padding: 4px 6px 4px 6px !important;
+    padding: 4px clamp(4px, 1vw, 8px) !important;
     box-sizing: border-box !important;
     gap: 4px !important;
   }
@@ -4469,6 +4474,80 @@ body.ultra-compact-view .btn-nav svg {
 }
 
 /* ============================================================
+   REAL-TIME DYNAMIC AUTO-FIT SYSTEM FOR MOBILE & RESIZED SCREENS
+   ============================================================ */
+body.screen-mobile {
+  --table-font-size: 0.78rem;
+}
+
+body.screen-mobile .all-entries-toolbar-left {
+  gap: 3px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
+body.screen-mobile .all-entries-toggle-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  flex-shrink: 0 !important;
+}
+
+body.screen-small .all-entries-toggle-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+}
+
+body.screen-small .all-entries-toggle-btn i,
+body.screen-small .all-entries-toggle-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+body.screen-landscape .app-header {
+  min-height: 34px !important;
+  max-height: 36px !important;
+  padding: 2px 8px !important;
+}
+
+body.screen-landscape .telegram-input-box {
+  padding: 2px 6px !important;
+}
+
+body.screen-landscape .telegram-input-box textarea {
+  min-height: 30px !important;
+  height: 30px !important;
+  font-size: 0.82rem !important;
+}
+
+body.screen-landscape .telegram-input-box button {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 10px !important;
+}
+
+body.screen-landscape .all-entries-bottom-bar,
+body.screen-landscape .barred-bottom-bar {
+  padding-top: 2px !important;
+  padding-bottom: 2px !important;
+}
+
+/* Ensure perfectly 1-page fit: NO outer document scrolling under any circumstances */
+body.screen-mobile,
+body.compact-view,
+body.ultra-compact-view {
+  overflow: hidden !important;
+  overflow-y: hidden !important;
+  overflow-x: hidden !important;
+  height: var(--app-height, 100dvh) !important;
+  max-height: var(--app-height, 100dvh) !important;
+}
+
+/* ============================================================
    EXCEL WORKBOOK SPREADSHEET VIEWER (Authentic Excel Layout)
    ============================================================ */
 .excel-sheet-viewer {
@@ -4729,5 +4808,37 @@ body.ultra-compact-view .btn-nav svg {
 
 .guestwise-sentence-item:hover {
   background: rgba(255, 255, 255, 0.06);
+}
+
+/* ==========================================================================
+   CUSTOM ENTRIES TABLE VIEW (TIME, CD, CASHIER, TYPE, AMOUNT, GUEST NAME, CARD, OTHER INFO)
+   ========================================================================== */
+.custom-entries-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.custom-entries-table thead th {
+  background: #0b1120 !important;
+  color: #38bdf8 !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem !important;
+  padding: 10px 12px !important;
+  border-bottom: 2px solid rgba(56, 189, 248, 0.3) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 10 !important;
+}
+
+.custom-entries-table tbody td {
+  padding: 8px 12px !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+}
+
+.custom-entries-table tbody tr:hover {
+  background: rgba(56, 189, 248, 0.06) !important;
 }
 

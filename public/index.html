@@ -24,15 +24,26 @@
   <script src="jszip.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="style.css?v=11">
+  <link rel="stylesheet" href="style.css?v=29">
 </head>
 <body>
 
-  <!-- Background Decorative Mesh -->
+  <!-- Background Decorative Mesh & Surveillance Watermark -->
   <div class="bg-mesh">
+    <div class="watermark-pattern-grid"></div>
     <div class="mesh-sphere sphere-1"></div>
     <div class="mesh-sphere sphere-2"></div>
     <div class="mesh-sphere sphere-3"></div>
+    <div class="surveillance-watermark-overlay">
+      <div class="surveillance-watermark-stamp">
+        <svg class="watermark-shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M9 12l2 2 4-4"/>
+        </svg>
+        <div class="watermark-title">SURVEILLANCE</div>
+        <div class="watermark-subtitle">MONITORING &amp; INTELLIGENCE SYSTEM</div>
+      </div>
+    </div>
   </div>
 
   <!-- LOGIN CONTAINER -->
@@ -112,16 +123,16 @@
             <i data-lucide="home"></i>
           </button>
 
-          <button id="btn-barred-global" class="btn-nav" title="Barred Guests" style="color: var(--danger);">
+          <button id="btn-barred-global" class="btn-nav btn-danger-nav" title="Barred Guests">
             <i data-lucide="ban"></i>
           </button>
           <button id="btn-admin-users" class="btn-nav btn-admin-style" title="Add Member" style="display: none !important;">
             <i data-lucide="user-plus"></i>
           </button>
-          <button id="btn-supervisor-log" class="btn-nav btn-supervisor-style" title="Add Entries" style="display: flex; align-items: center; justify-content: center; background: rgba(99,102,241,0.25); border: 1px solid rgba(99,102,241,0.5); color: #c4b5fd; width: 36px; height: 36px; padding: 0; border-radius: 8px;">
-            <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; display: inline-block;">+</span>
+          <button id="btn-supervisor-log" class="btn-nav btn-supervisor-style" title="Add Entries">
+            <span class="btn-plus-symbol">+</span>
           </button>
-          <button id="btn-logout" class="btn-nav" title="Logout">
+          <button id="btn-logout" class="btn-nav btn-logout-nav" title="Logout">
             <i data-lucide="log-out"></i>
           </button>
         </nav>
@@ -131,36 +142,33 @@
     <div class="content-wrapper">
       <!-- HISTORY RECORDS PANEL (HOME VIEW) -->
       <section id="history-table-panel" class="form-panel-card table-panel-card">
-        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div class="panel-header home-panel-header">
+          <div class="panel-header-info">
             <i data-lucide="history" class="panel-icon"></i>
-            <span class="record-badge" id="record-count" style="background: var(--primary-glow); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; border: 1px solid var(--primary-glow);">0 Records</span>
-            <span id="home-gaming-date-badge" style="background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); padding: 4px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+            <span class="record-badge" id="record-count">0 Records</span>
+            <span id="home-gaming-date-badge" class="home-gaming-date-badge">
               <i data-lucide="calendar" style="width: 13px; height: 13px;"></i>
               <span id="home-gaming-date-display">...</span>
             </span>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-            <div class="search-box" style="position: relative; width: 180px;">
-              <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 15px; height: 15px;"></i>
-              <input type="text" id="table-search" placeholder="Search logs..." style="padding-left: 32px; width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12); color: white; border-radius: 6px; padding-top: 6px; padding-bottom: 6px; font-size: 0.85rem;" />
+          <div class="panel-header-actions">
+            <!-- SEARCH (ONLY SYMBOL BUTTON) -->
+            <div class="search-box-wrap" id="home-search-wrap">
+              <button type="button" id="btn-toggle-home-search" class="btn-home-tool btn-search-toggle" title="Search Logs (Symbol Only)">
+                <i data-lucide="search"></i>
+              </button>
+              <input type="text" id="table-search" class="search-expand-input" placeholder="Search logs..." />
             </div>
             <!-- BUTTON: START NEW GAMING DAY (ONLY SYMBOL) -->
-            <button type="button" id="btn-start-new-day" class="btn-new-day" title="Start New Gaming Day (Change Date)" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; box-shadow: 0 2px 8px rgba(16,185,129,0.3); padding: 0; flex-shrink: 0;">
-              <i data-lucide="calendar-plus" style="width: 17px; height: 17px;"></i>
+            <button type="button" id="btn-start-new-day" class="btn-new-day" title="Start New Gaming Day (Change Date)">
+              <i data-lucide="calendar-plus"></i>
             </button>
             <!-- View Mode Toggles: SENTENCE vs TABLE (ONLY SYMBOLS) -->
-            <button type="button" id="btn-home-view-sentence" class="btn-toggle-view active" title="Sentence View" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: var(--primary); color: white; border: none; padding: 0; flex-shrink: 0;">
-              <i data-lucide="align-left" style="width: 17px; height: 17px;"></i>
+            <button type="button" id="btn-home-view-sentence" class="btn-toggle-view active" title="Sentence View">
+              <i data-lucide="align-left"></i>
             </button>
-            <button type="button" id="btn-home-view-table" class="btn-toggle-view" title="Table View" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; background: rgba(255,255,255,0.08); color: #94a3b8; border: 1px solid rgba(255,255,255,0.15); padding: 0; flex-shrink: 0;">
-              <i data-lucide="table" style="width: 17px; height: 17px;"></i>
-            </button>
-            <button id="btn-refresh" class="btn btn-primary" title="Refresh" style="width: 34px; height: 34px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;">
-              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
-            </button>
-            <button id="btn-open-log-modal" class="btn btn-primary btn-add-entries" title="Add Entries" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; width: 34px; height: 34px; padding: 0; border-radius: 8px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(99,102,241,0.5); flex-shrink: 0;">
-              <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; display: inline-block;">+</span>
+            <button type="button" id="btn-home-view-table" class="btn-toggle-view" title="Table View">
+              <i data-lucide="table"></i>
             </button>
           </div>
         </div>
@@ -265,30 +273,30 @@
 
       <!-- MAJOR PANEL -->
       <section id="major-panel-card" class="form-panel-card hidden-panel" style="display: none !important;">
-        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; gap: 10px; flex-wrap: wrap;">
+        <div class="panel-header major-panel-header">
           <!-- Left: View Each Entries By Guest Name Button (ONLY in Major Patron - SYMBOL ONLY) -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: flex-start;">
-            <button id="btn-toggle-major-view" class="btn btn-secondary" title="View Entries By Guest Name" style="width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.12); color: #c4b5fd; cursor: pointer; padding: 0;">
-              <i data-lucide="list" style="width: 18px; height: 18px; color: #a78bfa;"></i>
+          <div class="major-header-left">
+            <button id="btn-toggle-major-view" class="btn btn-secondary major-tool-btn" title="View Entries By Guest Name">
+              <i data-lucide="list" style="color: #a78bfa;"></i>
               <span id="btn-toggle-major-view-text" style="display:none;"></span>
             </button>
           </div>
           <!-- Center: Title -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;">
+          <div class="major-header-title">
             <i data-lucide="star" class="panel-icon" style="color: #fbbf24;"></i>
-            <h2 style="margin: 0; white-space: nowrap; font-size: 1.4rem; font-weight: 800; letter-spacing: 1px;">MAJOR PATRON</h2>
+            <h2>MAJOR PATRON</h2>
           </div>
           <!-- Right: Search & Refresh -->
-          <div style="flex: 1; display: flex; align-items: center; justify-content: flex-end; gap: 8px;">
-            <div class="search-box" style="position: relative; width: 280px; max-width: 100%;">
-              <i data-lucide="search" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); width: 16px; height: 16px;"></i>
-              <input type="text" id="major-search" placeholder="Search patron..." style="padding-left: 38px; width: 100%; box-sizing: border-box; height: 38px;" />
+          <div class="major-header-actions">
+            <!-- SEARCH (ONLY SYMBOL BUTTON) -->
+            <div class="search-box-wrap" id="major-search-wrap">
+              <button type="button" id="btn-major-search-action" class="major-tool-btn btn-search-toggle" title="Search Patron (Symbol Only)">
+                <i data-lucide="search"></i>
+              </button>
+              <input type="text" id="major-search" class="search-expand-input" placeholder="Search patron..." />
             </div>
-            <button id="btn-major-search-action" class="btn btn-primary" title="Search Patron" style="width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
-              <i data-lucide="search" style="width: 17px; height: 17px;"></i>
-            </button>
-            <button id="refreshMajor" class="btn btn-secondary" title="Refresh" style="width: 38px; height: 38px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; padding: 0;">
-              <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+            <button id="refreshMajor" class="btn btn-secondary major-tool-btn" title="Refresh">
+              <i data-lucide="refresh-cw"></i>
             </button>
           </div>
         </div>
@@ -323,24 +331,34 @@
         <!-- TOOLBAR: Controls directly below header -->
         <div class="barred-toolbar">
           
-          <!-- LEFT CONTROLS -->
+          <!-- LEFT CONTROLS (ONLY SYMBOL BUTTONS) -->
           <div class="barred-toolbar-left">
-            <!-- Hidden file input for Excel, Word, and PDF -->
-            <input type="file" id="barred-doc-upload" accept=".xlsx, .xls, .csv, .docx, .doc, .pdf, .txt" style="display: none;" />
+            <!-- Hidden file input for Photo, Excel, Word, PDF (Multiple allowed) -->
+            <input type="file" id="barred-doc-upload" accept=".xlsx, .xls, .csv, .docx, .doc, .pdf, .txt, image/*, .png, .jpg, .jpeg, .webp, .bmp" multiple style="display: none;" />
             
-            <!-- IMPORT BUTTON EXCEL AND WORD AND PDF (SYMBOL ONLY) -->
-            <button id="btn-import-barred-doc" class="btn-barred-tool btn-barred-import" title="Import from Excel, Word, or PDF" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
-              <i data-lucide="upload-cloud" style="width: 17px; height: 17px;"></i>
+            <!-- ONLY ONE UPLOAD BUTTON (SYMBOL ONLY) FOR PHOTO, EXCEL, WORD, PDF -->
+            <button id="btn-import-barred-doc" class="btn-barred-tool btn-barred-import" title="Upload (Photo, Excel, Word, PDF)" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="upload-cloud" style="width: 18px; height: 18px;"></i>
             </button>
 
             <!-- ADD BARRED (SYMBOL ONLY) -->
             <button id="btn-open-barred-modal" class="btn-barred-tool btn-barred-add" title="Add Barred Guest" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
-              <i data-lucide="user-plus" style="width: 17px; height: 17px;"></i>
+              <i data-lucide="user-plus" style="width: 18px; height: 18px;"></i>
             </button>
 
             <!-- DELETE ALL (SYMBOL ONLY) -->
             <button id="btn-delete-all-barred" class="btn-barred-tool btn-barred-delete-all" title="Delete All Barred Guests" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
-              <i data-lucide="trash-2" style="width: 17px; height: 17px;"></i>
+              <i data-lucide="trash-2" style="width: 18px; height: 18px;"></i>
+            </button>
+
+            <!-- VIEW TOGGLE: CARDS VIEW (SYMBOL ONLY) -->
+            <button id="btn-barred-view-cards" class="btn-barred-tool active" title="Cards View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="layout-grid" style="width: 18px; height: 18px;"></i>
+            </button>
+
+            <!-- VIEW TOGGLE: EXCEL SPREADSHEET VIEW (SYMBOL ONLY) -->
+            <button id="btn-barred-view-excel" class="btn-barred-tool" title="Excel Workbook View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="file-spreadsheet" style="width: 18px; height: 18px; color: #10b981;"></i>
             </button>
           </div>
 
@@ -351,10 +369,12 @@
               <i data-lucide="edit-3" style="width: 17px; height: 17px;"></i>
             </button>
 
-            <!-- SEARCH BUTTON / INPUT -->
-            <div class="barred-search-wrap">
-              <i data-lucide="search" class="barred-search-icon"></i>
-              <input type="text" id="barred-search" placeholder="SEARCH BARRED GUEST..." />
+            <!-- SEARCH (ONLY SYMBOL BUTTON) -->
+            <div class="search-box-wrap" id="barred-search-wrap">
+              <button type="button" id="btn-toggle-barred-search" class="btn-barred-tool btn-search-toggle" title="Search Barred Guests (Symbol Only)">
+                <i data-lucide="search"></i>
+              </button>
+              <input type="text" id="barred-search" class="search-expand-input" placeholder="SEARCH BARRED..." />
             </div>
           </div>
 
@@ -362,8 +382,14 @@
 
         <!-- CENTRAL DISPLAY BOX: ONLY CARDS MOVE UP AND DOWN -->
         <div class="barred-central-box">
+          <!-- CARD VIEW -->
           <div id="barred-list-container" class="barred-cards-scroll-area">
             <!-- 3-column cards injected dynamically by JS -->
+          </div>
+
+          <!-- EXCEL SPREADSHEET VIEW -->
+          <div id="barred-excel-view" class="barred-cards-scroll-area excel-sheet-viewer" style="display: none; padding: 12px; overflow: auto;">
+            <!-- Rendered Barred Excel sheet injected dynamically by JS -->
           </div>
         </div>
 
@@ -407,18 +433,25 @@
               </div>
               
               <!-- Right: Photo Upload -->
-              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; border: 2px dashed rgba(255,255,255,0.2); border-radius: 8px; padding: 10px; position: relative; justify-content: center; min-height: 200px; cursor: pointer; text-align: center; background: rgba(0,0,0,0.2);" id="barred-photo-box">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; border: 2px dashed rgba(56,189,248,0.4); border-radius: 8px; padding: 14px; position: relative; justify-content: center; min-height: 200px; cursor: pointer; text-align: center; background: rgba(0,0,0,0.35);" id="barred-photo-box">
                 <input type="file" id="barred-photo-input" accept="image/*" style="display: none;" />
-                <div id="barred-photo-placeholder" style="color: var(--text-muted); font-size: 0.9rem;">
-                  <i data-lucide="upload-cloud" style="width: 32px; height: 32px; margin-bottom: 8px;"></i>
-                  <br/>UPLOAD<br/>PHOTO AUTO<br/>FIT THIS BOX
+                <div id="barred-photo-placeholder" style="color: #94a3b8; font-size: 0.85rem; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none;">
+                  <i data-lucide="camera" style="width: 38px; height: 38px; color: #38bdf8;"></i>
+                  <span style="font-weight: 800; color: #fff; font-size: 0.95rem;">UPLOAD PHOTO</span>
+                  <span style="font-size: 0.75rem; color: #64748b;">(JPG, PNG, WEBP)</span>
+                  <div style="margin-top: 6px; padding: 6px 14px; background: rgba(56,189,248,0.2); border: 1px solid #38bdf8; border-radius: 6px; color: #38bdf8; font-weight: 700; font-size: 0.8rem; display: inline-flex; align-items: center; gap: 6px;">
+                    <i data-lucide="image" style="width: 14px; height: 14px;"></i> SELECT PHOTO
+                  </div>
                 </div>
                 <img id="barred-photo-preview" src="" alt="Preview" style="display: none; width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; border-radius: 6px;" />
               </div>
             </form>
           </div>
-          <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: center;">
-            <button type="submit" form="barred-guest-form" class="btn-primary" style="width: 100%; padding: 12px; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px; display:flex; align-items:center; justify-content:center; gap:8px;">
+          <div class="modal-footer" style="padding: 15px 20px; border-top: 1px solid rgba(255,255,255,0.1); display: flex; justify-content: flex-end; gap: 12px;">
+            <button type="button" id="btn-cancel-barred-modal" class="btn-secondary" style="padding: 10px 20px; font-weight: 700; border-radius: 8px; cursor: pointer; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff;">
+              CLOSE
+            </button>
+            <button type="submit" form="barred-guest-form" class="btn-primary" style="flex: 1; padding: 10px 20px; font-size: 1.05rem; font-weight: bold; letter-spacing: 1px; display:flex; align-items:center; justify-content:center; gap:8px;">
               <i data-lucide="shield-check" style="width:20px;height:20px;"></i>
               <span>SUBMIT</span>
             </button>
@@ -443,9 +476,12 @@
           
           <!-- SEARCH AND TOGGLE (LEFT) -->
           <div class="all-entries-toolbar-left">
-            <div class="all-entries-search-wrap">
-              <i data-lucide="search" class="all-entries-search-icon"></i>
-              <input type="text" id="all-entries-search" placeholder="SEARCH" />
+            <!-- SEARCH (ONLY SYMBOL BUTTON) -->
+            <div class="search-box-wrap" id="all-entries-search-wrap">
+              <button type="button" id="btn-toggle-all-search" class="all-entries-toggle-btn btn-search-toggle" title="Search All Entries (Symbol Only)">
+                <i data-lucide="search"></i>
+              </button>
+              <input type="text" id="all-entries-search" class="search-expand-input" placeholder="SEARCH..." />
             </div>
 
             <button id="btn-delete-selected" class="btn-danger btn-delete-selected-all" style="display: none; width: 38px; height: 38px; padding: 0; justify-content: center; align-items: center; border-radius: 8px;" title="Delete Selected Entries">
@@ -460,6 +496,16 @@
             <!-- Sentence View Toggle (SYMBOL ONLY) -->
             <button id="btn-view-sentence" class="all-entries-toggle-btn" title="Sentence View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
               <i data-lucide="align-left" style="width:17px;height:17px;"></i>
+            </button>
+
+            <!-- Excel Workbook View Toggle (SYMBOL ONLY) -->
+            <button id="btn-view-excel" class="all-entries-toggle-btn" title="Excel Workbook View" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="file-spreadsheet" style="width:17px;height:17px;color:#10b981;"></i>
+            </button>
+
+            <!-- Entries By Guest Wise View Toggle -->
+            <button id="btn-view-guestwise" class="all-entries-toggle-btn" title="Entries By Guest Wise" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
+              <i data-lucide="users" style="width:17px;height:17px;color:#a78bfa;"></i>
             </button>
           </div>
           
@@ -506,6 +552,16 @@
           <!-- SENTENCE VIEW CONTENT -->
           <div id="all-entries-list-container" class="all-entries-list all-entries-scroll-area" style="display: none;">
             <!-- All entries sentences will be injected here -->
+          </div>
+
+          <!-- EXCEL WORKBOOK SPREADSHEET VIEW -->
+          <div id="all-entries-excel-view" class="all-entries-scroll-area excel-sheet-viewer" style="display: none; padding: 10px; overflow: auto;">
+            <!-- Rendered Excel sheet HTML -->
+          </div>
+
+          <!-- ENTRIES BY GUEST WISE VIEW -->
+          <div id="all-entries-guestwise-view" class="all-entries-scroll-area guestwise-view-container" style="display: none; padding: 14px 16px; overflow-y: auto;">
+            <!-- Rendered Guest Wise Cards injected dynamically by JS -->
           </div>
         </div>
 
@@ -566,18 +622,41 @@
       <div class="modal-body" id="supervisor-log-modal-body" style="padding: 20px;">
         <form id="entry-form" class="horizontal-form" novalidate>
           <div class="form-row" style="flex-wrap: nowrap; padding-bottom: 5px; align-items: flex-start;">
-            <!-- DateTime (Hidden from Form) -->
-            <div class="form-group flex-2" style="display: none;">
-              <label for="datetime">Date &amp; Time</label>
+            <!-- 1. TIME -->
+            <div class="form-group flex-2">
+              <label for="datetime" style="display: none;">Time</label>
               <div class="input-wrapper">
-                <i data-lucide="calendar" class="field-icon"></i>
-                <input type="datetime-local" id="datetime" required>
+                <i data-lucide="clock" class="field-icon"></i>
+                <input type="datetime-local" id="datetime" required style="padding-left: 36px; color: #fff; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; font-size: 0.85rem;">
               </div>
             </div>
 
-            <!-- Hidden CD and Cashier (Removed from view) -->
-            <input type="hidden" id="cd" value="CD-01">
-            <input type="hidden" id="cashier" value="-">
+            <!-- 2. CD -->
+            <div class="form-group flex-1">
+              <label for="cd" style="display: none;">CD</label>
+              <div class="input-wrapper">
+                <i data-lucide="monitor" class="field-icon"></i>
+                <input type="text" id="cd" placeholder="CD" value="CD-01" required style="padding-left: 36px;">
+              </div>
+              <div class="inline-options-list">
+                <div class="inline-option-item">CD-01</div>
+                <div class="inline-option-item">CD-02</div>
+                <div class="inline-option-item">CD-03</div>
+                <div class="inline-option-item">CD-04</div>
+                <div class="inline-option-item">M-CD</div>
+                <div class="inline-option-item">F-CD</div>
+              </div>
+            </div>
+
+            <!-- 3. CASHIER -->
+            <div class="form-group flex-1">
+              <label for="cashier" style="display: none;">Cashier</label>
+              <div class="input-wrapper">
+                <i data-lucide="user-check" class="field-icon"></i>
+                <input type="text" id="cashier" placeholder="CASHIER" autocomplete="off" style="padding-left: 36px;">
+              </div>
+              <div class="inline-options-list" id="cashier-options-grid"></div>
+            </div>
 
             <!-- Type -->
             <div class="form-group flex-1-5">
@@ -708,9 +787,20 @@
             </div>
           </div>
           
-          <!-- Hidden CD and Cashier (Removed from view) -->
-          <input type="hidden" id="edit-cd" value="CD-01">
-          <input type="hidden" id="edit-cashier" value="-">
+          <div style="display: flex; gap: 15px;">
+            <div class="form-group flex-1">
+              <label>CD</label>
+              <div class="input-wrapper">
+                <input type="text" id="edit-cd" value="CD-01" style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+            <div class="form-group flex-1">
+              <label>Cashier</label>
+              <div class="input-wrapper">
+                <input type="text" id="edit-cashier" value="-" style="width:100%; box-sizing:border-box;">
+              </div>
+            </div>
+          </div>
 
           <div style="display: flex; gap: 15px;">
             <div class="form-group flex-1">
@@ -834,29 +924,40 @@
   </div>
 
   <!-- WARNING MODAL: Barred Guest Match -->
-  <div id="barred-warning-modal" class="modal-overlay" style="display: none; z-index: 9999;">
-    <div class="modal-content" style="max-width: 90%; width: 500px; padding: 0; background: var(--bg-color); border: 2px solid var(--danger); box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);">
-      <div class="modal-header" style="background: rgba(239, 68, 68, 0.1); border-bottom: 1px solid rgba(239, 68, 68, 0.2); padding: 15px 20px; text-align: center;">
-        <h2 style="margin: 0; color: var(--danger); display: flex; align-items: center; justify-content: center; gap: 10px;">
-          <i data-lucide="alert-triangle" style="width: 28px; height: 28px;"></i> WARNING
+  <div id="barred-warning-modal" class="modal-overlay" style="display: none; align-items: center; justify-content: center; z-index: 9999; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);">
+    <div class="modal-content" style="max-width: 90%; width: 500px; padding: 0; background: #0f172a; border: 2px solid var(--danger, #ef4444); border-radius: 14px; box-shadow: 0 0 35px rgba(239, 68, 68, 0.45); position: relative; overflow: hidden;">
+      <!-- Top-Right Close "X" Button -->
+      <button type="button" id="btn-x-close-barred-warning" class="modal-close-btn" title="Close" style="position: absolute; top: 12px; right: 14px; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #fff; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10;">
+        <i data-lucide="x" style="width: 18px; height: 18px;"></i>
+      </button>
+
+      <div class="modal-header" style="background: rgba(239, 68, 68, 0.15); border-bottom: 1px solid rgba(239, 68, 68, 0.3); padding: 16px 20px; text-align: center;">
+        <h2 style="margin: 0; color: #ef4444; display: flex; align-items: center; justify-content: center; gap: 10px; font-weight: 800;">
+          <i data-lucide="alert-triangle" style="width: 26px; height: 26px;"></i> BARRED GUEST WARNING
         </h2>
       </div>
-      <div class="modal-body" style="padding: 25px; text-align: center;">
-        <h3 style="margin-top: 0; color: white;" id="barred-warning-name">GUEST NAME</h3>
-        <p style="color: var(--text-secondary); font-size: 1.1rem; margin-bottom: 20px;">This guest is on the <strong style="color: var(--danger);">Barred List</strong>.</p>
-        <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); text-align: left; margin-bottom: 20px;">
-          <div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 4px;">REASON</div>
-          <div style="color: white; font-weight: bold;" id="barred-warning-reason">...</div>
+      <div class="modal-body" style="padding: 24px; text-align: center;">
+        <h3 style="margin-top: 0; color: white; font-size: 1.3rem; margin-bottom: 6px;" id="barred-warning-name">GUEST NAME</h3>
+        <p style="color: #94a3b8; font-size: 1rem; margin-bottom: 18px;">This guest is on the <strong style="color: #ef4444;">Barred List</strong>.</p>
+        <div style="background: rgba(0,0,0,0.35); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); text-align: left; margin-bottom: 22px;">
+          <div style="color: #94a3b8; font-size: 0.8rem; font-weight: 700; margin-bottom: 6px; letter-spacing: 0.5px;">DETAILS & REASON</div>
+          <div style="color: white; font-weight: 600;" id="barred-warning-reason">...</div>
         </div>
-        <button id="btn-close-barred-warning" class="btn-primary" style="width: 100%; padding: 12px; font-weight: bold; background: var(--danger); display:flex; align-items:center; justify-content:center; gap:8px;">
-          <i data-lucide="shield-alert" style="width:18px;height:18px;"></i>
-          <span>ACKNOWLEDGE</span>
-        </button>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button type="button" id="btn-cancel-barred-warning" style="flex: 1; padding: 12px; background: rgba(255,255,255,0.1); color: #e2e8f0; border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+            <span>CLOSE</span>
+          </button>
+          <button type="button" id="btn-close-barred-warning" class="btn-primary" style="flex: 1; padding: 12px; font-weight: 800; background: linear-gradient(135deg, #dc2626, #ef4444); color: white; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(239,68,68,0.35);">
+            <i data-lucide="shield-alert" style="width: 17px; height: 17px;"></i>
+            <span>ACKNOWLEDGE</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
 
-  <script src="app.js?v=42"></script>
+  <script src="app.js?v=61"></script>
 
   <!-- DIRECT PHOTO UPLOADS -->
   <input type="file" id="direct-photo-barred" accept="image/*" style="display:none;" />
