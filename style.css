@@ -711,6 +711,7 @@ body {
 
 .text-green { color: var(--success); }
 .text-red { color: var(--danger); }
+.text-neutral { color: var(--text-muted); }
 
 .stat-icon-box {
   border-radius: 12px;
@@ -4442,7 +4443,21 @@ body.ultra-compact-view .btn-nav svg {
 
 .excel-card-result {
   border-bottom: 2px solid #0f172a !important;
-  color: #0369a1;
+}
+
+.excel-card-result-plus {
+  color: #15803d !important;
+  font-weight: 800 !important;
+}
+
+.excel-card-result-minus {
+  color: #dc2626 !important;
+  font-weight: 800 !important;
+}
+
+.excel-card-result-zero {
+  color: #64748b !important;
+  font-weight: 700 !important;
 }
 
 .excel-card-blank {

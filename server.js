@@ -142,7 +142,8 @@ function loadBusinessDateState() {
 
   if (fs.existsSync(STATE_FILE)) {
     try {
-      const parsed = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+      const raw = fs.readFileSync(STATE_FILE, 'utf8').replace(/^\uFEFF/, '');
+      const parsed = JSON.parse(raw);
       if (parsed && parsed.currentBusinessDate && parsed.validUntilTimestamp) {
         return parsed;
       }
@@ -261,11 +262,11 @@ setInterval(() => {
 
 
 
-// Migrate existing entry files from TARGET_DIR to ENTRIES_DIR
+// Migrate legacy entry files from TARGET_DIR to ENTRIES_DIR
 try {
   const existingFiles = fs.readdirSync(TARGET_DIR);
   existingFiles.forEach(file => {
-    if (file.endsWith('.json') && file !== 'users_db.json') {
+    if (file.endsWith('.json') && file.startsWith('entry_')) {
       const oldPath = path.join(TARGET_DIR, file);
       const newPath = path.join(ENTRIES_DIR, file);
       fs.renameSync(oldPath, newPath);
@@ -708,8 +709,8 @@ function loadUsers() {
   }
 
   try {
-    const data = fs.readFileSync(USERS_FILE, 'utf8');
-    let users = JSON.parse(data);
+    const rawData = fs.readFileSync(USERS_FILE, 'utf8');
+    let users = JSON.parse(rawData.replace(/^\uFEFF/, ''));
     let upgraded = false;
 
     // Remove legacy default users so they never reappear after deletion
@@ -1176,6 +1177,31 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // POST /api/staff (Single)
+  if (pathname === '/api/staff' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      try {
+        const { id, name, employeeid, department, role, photo } = JSON.parse(body);
+        if (!name) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Name is required' }));
+        }
+        const staffId = id || Date.now();
+        const entryData = { id: staffId, name, employeeid, department, role, photo, timestamp: staffId };
+        fs.writeFileSync(path.join(STAFF_DIR, `staff_${staffId}.json`), JSON.stringify(entryData, null, 2), 'utf8');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: true, entry: entryData }));
+      } catch (e) {
+        console.error('Error saving staff member:', e);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ error: 'Internal server error' }));
+      }
+    });
+    return;
+  }
+
   // POST /api/staff/bulk
   if (pathname === '/api/staff/bulk' && req.method === 'POST') {
     let body = '';
@@ -1183,7 +1209,8 @@ const server = http.createServer((req, res) => {
     req.on('end', () => {
       try {
         const data = JSON.parse(body);
-        if (!Array.isArray(data.staff)) {
+        const list = Array.isArray(data.staff) ? data.staff : (Array.isArray(data.entries) ? data.entries : null);
+        if (!list) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Expected an array of staff.' }));
           return;
@@ -1201,7 +1228,7 @@ const server = http.createServer((req, res) => {
         
         const added = [];
         let idCounter = Date.now();
-        data.staff.forEach(s => {
+        list.forEach(s => {
           const id = idCounter++;
           const entryData = { id, timestamp: id, ...s };
           fs.writeFileSync(path.join(STAFF_DIR, `staff_${id}.json`), JSON.stringify(entryData, null, 2), 'utf8');
@@ -1219,8 +1246,10 @@ const server = http.createServer((req, res) => {
   }
 
   // DELETE /api/staff
-  if (pathname === '/api/staff' && req.method === 'DELETE') {
-    const id = parsedUrl.searchParams.get('id');
+  if ((pathname === '/api/staff' || pathname.startsWith('/api/staff/')) && req.method === 'DELETE') {
+    const queryId = parsedUrl.searchParams.get('id');
+    const pathId = pathname.startsWith('/api/staff/') ? pathname.split('/').pop() : null;
+    const id = queryId || pathId;
     if (!id) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: 'ID is required.' }));
@@ -1653,111 +1682,6 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // ==========================================
-  // STAFF / EMPLOYEE LOGIC
-  // ==========================================
-  if (req.method === 'GET' && pathname === '/api/staff') {
-    try {
-      if (!fs.existsSync(STAFF_DIR)) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ staff: [] }));
-      }
-      const files = fs.readdirSync(STAFF_DIR);
-      const staffList = [];
-      files.forEach(file => {
-        if (file.endsWith('.json')) {
-          try {
-            const content = fs.readFileSync(path.join(STAFF_DIR, file), 'utf8');
-            staffList.push(JSON.parse(content));
-          } catch (e) {
-            console.error('Error reading staff file', file, e);
-          }
-        }
-      });
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ staff: staffList }));
-    } catch (e) {
-      console.error('Failed to get staff list:', e);
-      res.writeHead(500, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ error: 'Internal server error' }));
-    }
-  }
-
-  if (req.method === 'POST' && pathname === '/api/staff') {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        const { id, name, employeeid, department, role, photo } = JSON.parse(body);
-        if (!name) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Name is required' }));
-        }
-        const entryData = { id, name, employeeid, department, role, photo, timestamp: id };
-        fs.writeFileSync(path.join(STAFF_DIR, `staff_${id}.json`), JSON.stringify(entryData, null, 2), 'utf8');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: true }));
-      } catch (e) {
-        console.error('Error saving staff member:', e);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: 'Internal server error' }));
-      }
-    });
-    return;
-  }
-
-  if (req.method === 'POST' && pathname === '/api/staff/bulk') {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end', () => {
-      try {
-        const { entries } = JSON.parse(body);
-        if (!entries || !Array.isArray(entries)) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Invalid payload' }));
-        }
-        let added = [];
-        entries.forEach(entry => {
-          const { name, employeeid, department, role, photo } = entry;
-          if (name) {
-            const id = Date.now() + Math.floor(Math.random() * 10000);
-            const entryData = { id, name, employeeid, department, role, photo, timestamp: id };
-            fs.writeFileSync(path.join(STAFF_DIR, `staff_${id}.json`), JSON.stringify(entryData, null, 2), 'utf8');
-            added.push(entryData);
-          }
-        });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: true, count: added.length }));
-      } catch (e) {
-        console.error('Error in bulk staff import:', e);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: 'Internal server error' }));
-      }
-    });
-    return;
-  }
-
-  if (req.method === 'DELETE' && pathname.startsWith('/api/staff/')) {
-    const id = pathname.split('/').pop();
-    if (id) {
-      try {
-        const filePath = path.join(STAFF_DIR, `staff_${id}.json`);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: true }));
-        } else {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Staff member not found' }));
-        }
-      } catch (e) {
-        console.error('Error deleting staff member:', e);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ error: 'Failed to delete' }));
-      }
-    }
-    return;
-  }
 
   // ==========================================================================
   // STATIC FILE ROUTING

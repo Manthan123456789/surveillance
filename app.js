@@ -2699,7 +2699,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Result = Total Out minus Total In
         const netResult = g.totalOut - g.totalIn;
         const isNegative = netResult < 0;
-        const resultColorClass = isNegative ? 'text-red' : 'text-green';
+        const resultColorClass = isNegative ? 'text-red' : (netResult > 0 ? 'text-green' : 'text-neutral');
         let formattedResult = formatCurrency(Math.abs(netResult));
         if (isNegative) {
           formattedResult = '-' + formattedResult;
@@ -2798,7 +2798,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // If result is minus, make it RED, otherwise GREEN
       const isNegative = netResult < 0;
-      const resultColorClass = isNegative ? 'text-red' : 'text-green';
+      const resultColorClass = isNegative ? 'text-red' : (netResult > 0 ? 'text-green' : 'text-neutral');
       let formattedResult = formatCurrency(Math.abs(netResult));
       if (isNegative) {
         formattedResult = '-' + formattedResult;
@@ -2957,7 +2957,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     const guestList = Object.values(guestMap);
-    guestList.forEach(g => { g.result = g.totalIn - g.totalOut; });
+    guestList.forEach(g => { g.result = g.totalOut - g.totalIn; });
     guestList.sort((a, b) => b.totalIn - a.totalIn);
     return guestList;
   }
@@ -3001,7 +3001,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const upperName = String(g.name || '').toUpperCase();
       const inStr = Number(g.totalIn || 0).toLocaleString('en-IN');
       const outStr = Number(g.totalOut || 0).toLocaleString('en-IN');
-      const resStr = Number(g.result || 0).toLocaleString('en-IN');
+      const resVal = Number(g.result || 0);
+      const resPrefix = resVal < 0 ? '-' : (resVal > 0 ? '+' : '');
+      const resStr = `${resPrefix}${Math.abs(resVal).toLocaleString('en-IN')}`;
 
       // Row 1 of card (Cell I1, I6, I11...)
       aoa[cardRow][8] = `GUEST NAME: ${upperName}`;
@@ -3184,11 +3186,14 @@ document.addEventListener('DOMContentLoaded', async () => {
       const upperName = String(g.name || '').toUpperCase();
       const inStr = Number(g.totalIn || 0).toLocaleString('en-IN');
       const outStr = Number(g.totalOut || 0).toLocaleString('en-IN');
-      const resStr = Number(g.result || 0).toLocaleString('en-IN');
+      const resVal = Number(g.result || 0);
+      const resPrefix = resVal < 0 ? '-' : (resVal > 0 ? '+' : '');
+      const resStr = `${resPrefix}${Math.abs(resVal).toLocaleString('en-IN')}`;
+      const resType = resVal < 0 ? 'res-minus' : (resVal > 0 ? 'res-plus' : 'res-zero');
       cardRows.push({ type: 'top', text: `GUEST NAME: ${upperName}` });
       cardRows.push({ type: 'in', text: `TOTAL IN: ${inStr}` });
       cardRows.push({ type: 'out', text: `TOTAL OUT: ${outStr}` });
-      cardRows.push({ type: 'res', text: `RESULT: ${resStr}` });
+      cardRows.push({ type: resType, text: `RESULT: ${resStr}` });
       cardRows.push({ type: 'blank', text: '' });
     });
 
@@ -3242,7 +3247,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (card.type === 'top') cardClass += ' excel-card-top';
         else if (card.type === 'in') cardClass += ' excel-card-in';
         else if (card.type === 'out') cardClass += ' excel-card-out';
-        else if (card.type === 'res') cardClass += ' excel-card-result';
+        else if (card.type === 'res-plus') cardClass += ' excel-card-result excel-card-result-plus';
+        else if (card.type === 'res-minus') cardClass += ' excel-card-result excel-card-result-minus';
+        else if (card.type === 'res-zero' || card.type === 'res') cardClass += ' excel-card-result excel-card-result-zero';
         else if (card.type === 'blank') cardClass = 'excel-cell excel-card-blank';
         cardText = escapeHTML(card.text);
       } else {
