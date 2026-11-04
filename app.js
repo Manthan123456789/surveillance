@@ -1048,6 +1048,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.style.overflowY = 'hidden';
   }
 
+  function focusHomeMessageBox() {
+    function doFocus() {
+      const qInput = document.getElementById('officer-quick-input');
+      if (qInput && qInput.offsetParent !== null) {
+        qInput.focus();
+        try {
+          const valLen = qInput.value.length;
+          qInput.setSelectionRange(valLen, valLen);
+        } catch (e) {}
+      }
+    }
+    doFocus();
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(doFocus);
+    setTimeout(doFocus, 50);
+    setTimeout(doFocus, 150);
+    setTimeout(doFocus, 300);
+  }
+
   function showHomePanel() {
     sessionStorage.setItem('current_panel', 'home');
     hideAllPanels();
@@ -1100,6 +1118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if(btnHome) btnHome.classList.add('active');
     fetchEntries();
+    focusHomeMessageBox();
   }
 
   function showAdminPanel() {
@@ -1271,6 +1290,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   if(btnHome) btnHome.addEventListener('click', () => {
     if(typeof hideAllPanels === 'function') hideAllPanels();
     if(typeof showHomePanel === 'function') showHomePanel();
+    focusHomeMessageBox();
   });
   function showBarredPanel() {
     sessionStorage.setItem('current_panel', 'barred');
@@ -1313,7 +1333,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if(btnAdminUsers) btnAdminUsers.addEventListener('click', showAdminPanel);
   if(btnMajor) btnMajor.addEventListener('click', showMajorPanel);
   if(btnAllEntries) btnAllEntries.addEventListener('click', showAllEntriesPanel);
-  if(btnAllEntriesHome) btnAllEntriesHome.addEventListener('click', showHomePanel);
+  if(btnAllEntriesHome) btnAllEntriesHome.addEventListener('click', () => {
+    if(typeof showHomePanel === 'function') showHomePanel();
+    focusHomeMessageBox();
+  });
 
   // Add Entries (Log Modal) Event Listeners
   const btnAllEntriesAddLog = document.getElementById('btn-all-entries-add-log');
@@ -1904,6 +1927,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnCloseBarredGuests.addEventListener('click', () => {
       if (barredGuestsPanel) barredGuestsPanel.style.display = 'none';
       showHomePanel();
+      focusHomeMessageBox();
     });
   }
 
