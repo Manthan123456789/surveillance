@@ -4573,12 +4573,12 @@ body.ultra-compact-view {
 /* Excel Column letter header row (A, B, C, D...) */
 .excel-col-letter-row th {
   background: #e2e8f0;
-  color: #475569;
+  color: #000000;
   font-weight: 700;
   font-size: 11px;
   text-align: center;
   padding: 4px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #000000 !important;
   position: sticky;
   top: 0;
   z-index: 5;
@@ -4587,24 +4587,25 @@ body.ultra-compact-view {
 /* Excel Row numbers (1, 2, 3...) */
 .excel-row-num {
   background: #e2e8f0;
-  color: #475569;
+  color: #000000;
   font-weight: 700;
   font-size: 11px;
   text-align: center;
   padding: 4px 8px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #000000 !important;
   user-select: none;
   min-width: 32px;
 }
 
-/* Excel Cell */
+/* Excel Cell - All cells dark black border */
 .excel-cell {
-  border: 1px solid #cbd5e1;
+  border: 1px solid #000000 !important;
   padding: 6px 10px;
   white-space: nowrap;
   vertical-align: middle;
   text-align: center;
   font-weight: 700;
+  color: #000000;
 }
 
 /* Light Blue Header row matching user requirement */

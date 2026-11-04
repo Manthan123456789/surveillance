@@ -3125,12 +3125,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   <borders count="2">
     <!-- 0: None -->
     <border><left/><right/><top/><bottom/><diagonal/></border>
-    <!-- 1: Thin Black All Borders -->
+    <!-- 1: Solid Dark Black Medium Borders for All Excel Cells -->
     <border>
-      <left style="thin"><color rgb="FF000000"/></left>
-      <right style="thin"><color rgb="FF000000"/></right>
-      <top style="thin"><color rgb="FF000000"/></top>
-      <bottom style="thin"><color rgb="FF000000"/></bottom>
+      <left style="medium"><color rgb="FF000000"/></left>
+      <right style="medium"><color rgb="FF000000"/></right>
+      <top style="medium"><color rgb="FF000000"/></top>
+      <bottom style="medium"><color rgb="FF000000"/></bottom>
       <diagonal/>
     </border>
   </borders>
@@ -3291,7 +3291,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const guestSummaries = computeGuestSummariesForExcel(entries);
     const cardRowCount = guestSummaries.length > 0 ? (guestSummaries.length * 5) : 0;
-    const maxRows = Math.max(entries.length, cardRowCount);
+    const maxRows = Math.max(entries.length, cardRowCount, 25);
     for (let i = 0; i < maxRows; i++) {
       const row = new Array(9).fill('');
       if (i < entries.length) {
