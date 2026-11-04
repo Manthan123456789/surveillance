@@ -5119,10 +5119,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Live parse preview as user types & dynamic auto-grow
     if (qInput) qInput.addEventListener('input', () => {
-      // Auto-grow height based on content
+      // Auto-grow height based on content without ugly scrollbars
       qInput.style.height = 'auto';
-      const newHeight = Math.min(Math.max(qInput.scrollHeight, 46), 140);
+      const newHeight = Math.min(Math.max(qInput.scrollHeight, 52), 150);
       qInput.style.height = newHeight + 'px';
+      qInput.style.overflowY = qInput.scrollHeight > 150 ? 'auto' : 'hidden';
 
       const raw = qInput.value.trim();
       if (!raw) { setFb(''); return; }

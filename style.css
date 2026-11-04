@@ -2701,20 +2701,63 @@ textarea { text-transform: uppercase !important; }
   box-shadow: none !important;
 }
 .telegram-input-box {
-  display: flex;
-  align-items: center;
-  background: rgba(18, 24, 39, 0.95);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1.5px solid rgba(99, 102, 241, 0.4);
-  border-radius: 16px;
-  padding: 6px 8px 6px 18px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255, 255, 255, 0.05);
-  transition: border-color 0.2s, box-shadow 0.2s;
+  display: flex !important;
+  align-items: center !important;
+  background: rgba(18, 24, 39, 0.95) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1.8px solid rgba(139, 92, 246, 0.45) !important;
+  border-radius: 30px !important;
+  padding: 6px 8px 6px 20px !important;
+  min-height: 62px !important;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55), inset 0 1px 2px rgba(255, 255, 255, 0.08) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
 }
 .telegram-input-box:focus-within {
-  border-color: #8b5cf6;
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.35), inset 0 1px 2px rgba(255, 255, 255, 0.08);
+  border-color: #8b5cf6 !important;
+  box-shadow: 0 8px 35px rgba(99, 102, 241, 0.45), inset 0 1px 2px rgba(255, 255, 255, 0.12) !important;
+}
+.telegram-input-box textarea {
+  flex: 1 !important;
+  min-height: 50px !important;
+  font-size: 1.2rem !important;
+  line-height: 1.45 !important;
+  padding: 12px 10px !important;
+  color: #ffffff !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  resize: none !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+.telegram-input-box textarea::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.telegram-input-box button {
+  width: 50px !important;
+  height: 50px !important;
+  min-width: 50px !important;
+  min-height: 50px !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.55) !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+.telegram-input-box button:hover {
+  transform: scale(1.06) !important;
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.7) !important;
+}
+.telegram-input-box button:active {
+  transform: scale(0.96) !important;
 }
 .table-panel-card .panel-header {
   margin-bottom: 8px !important;
@@ -4085,21 +4128,23 @@ textarea { text-transform: uppercase !important; }
   }
 
   .telegram-input-box {
-    padding: 4px 6px 4px 12px !important;
-    border-radius: 14px !important;
+    padding: 4px 6px 4px 14px !important;
+    border-radius: 26px !important;
+    min-height: 54px !important;
   }
 
   .telegram-input-box textarea {
-    min-height: 40px !important;
-    font-size: 0.95rem !important;
-    padding: 8px 2px !important;
+    min-height: 44px !important;
+    font-size: 1.1rem !important;
+    padding: 10px 6px !important;
   }
 
   .telegram-input-box button {
-    height: 40px !important;
-    padding: 0 16px !important;
-    font-size: 0.85rem !important;
-    border-radius: 10px !important;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    border-radius: 50% !important;
   }
 
   /* Panels (All Entries, Barred, Admin) on Mobile: 100% Viewport Fit, Internal Scroll ONLY */
@@ -4315,17 +4360,20 @@ textarea { text-transform: uppercase !important; }
     font-size: 0.95rem !important;
   }
   .telegram-input-box {
-    padding: 3px 4px 3px 8px !important;
+    padding: 3px 4px 3px 10px !important;
+    border-radius: 24px !important;
+    min-height: 48px !important;
   }
   .telegram-input-box textarea {
-    min-height: 36px !important;
-    font-size: 0.88rem !important;
+    min-height: 40px !important;
+    font-size: 1rem !important;
   }
   .telegram-input-box button {
-    width: 36px !important;
-    height: 36px !important;
-    min-width: 36px !important;
-    min-height: 36px !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    min-height: 40px !important;
+    border-radius: 50% !important;
     padding: 0 !important;
   }
 }
@@ -4519,19 +4567,20 @@ body.screen-landscape .app-header {
 }
 
 body.screen-landscape .telegram-input-box {
-  padding: 2px 6px !important;
+  padding: 4px 6px 4px 16px !important;
+  min-height: 56px !important;
 }
 
 body.screen-landscape .telegram-input-box textarea {
-  min-height: 30px !important;
-  height: 30px !important;
-  font-size: 0.82rem !important;
+  min-height: 46px !important;
+  font-size: 1.15rem !important;
 }
 
 body.screen-landscape .telegram-input-box button {
-  height: 30px !important;
-  min-height: 30px !important;
-  padding: 0 10px !important;
+  width: 46px !important;
+  height: 46px !important;
+  min-width: 46px !important;
+  min-height: 46px !important;
 }
 
 body.screen-landscape .all-entries-bottom-bar,
