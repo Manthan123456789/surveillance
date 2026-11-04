@@ -141,6 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       resetFormInputs();
       if (typeof renderCashierSuggestions === 'function') renderCashierSuggestions('');
       supervisorLogModal.style.display = 'flex';
+      if (typeof renderModalEntriesView === 'function') renderModalEntriesView(allEntries);
       if (typeof lucide !== 'undefined') lucide.createIcons();
     }
   }
@@ -510,6 +511,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Helper: Synchronize visibility and button states for All Entries views
   function applyAllEntriesViewMode() {
     const normal = document.getElementById('all-entries-normal-view');
+    const custom = document.getElementById('all-entries-custom-view');
     const list = document.getElementById('all-entries-list-container');
     const excel = document.getElementById('all-entries-excel-view');
     const guestwise = document.getElementById('all-entries-guestwise-view');
@@ -517,14 +519,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const btnNormal = document.getElementById('btn-view-normal');
     const btnSentence = document.getElementById('btn-view-sentence');
     const btnExcel = document.getElementById('btn-view-excel');
+    const btnCustom = document.getElementById('btn-view-custom-entries');
     const btnGuestwise = document.getElementById('btn-view-guestwise');
 
     if (btnNormal) btnNormal.classList.toggle('active', allEntriesViewMode === 'table');
     if (btnSentence) btnSentence.classList.toggle('active', allEntriesViewMode === 'sentence');
     if (btnExcel) btnExcel.classList.toggle('active', allEntriesViewMode === 'excel');
+    if (btnCustom) btnCustom.classList.toggle('active', allEntriesViewMode === 'custom-entries');
     if (btnGuestwise) btnGuestwise.classList.toggle('active', allEntriesViewMode === 'guestwise');
 
-    if (normal) normal.style.setProperty('display', (allEntriesViewMode === 'table' || allEntriesViewMode === 'custom-entries') ? 'block' : 'none', 'important');
+    if (normal) normal.style.setProperty('display', allEntriesViewMode === 'table' ? 'block' : 'none', 'important');
+    if (custom) custom.style.setProperty('display', allEntriesViewMode === 'custom-entries' ? 'block' : 'none', 'important');
     if (list) list.style.setProperty('display', allEntriesViewMode === 'sentence' ? 'block' : 'none', 'important');
     if (excel) excel.style.setProperty('display', allEntriesViewMode === 'excel' ? 'block' : 'none', 'important');
     if (guestwise) guestwise.style.setProperty('display', allEntriesViewMode === 'guestwise' ? 'block' : 'none', 'important');
@@ -676,6 +681,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderAllEntriesExcelView(sourceEntries);
     renderAllEntriesGuestwiseView(sourceEntries);
+    renderAllEntriesCustomView(sourceEntries);
 
     applyAllEntriesViewMode();
   }
@@ -918,6 +924,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderEntries(allEntries, { limit: CURRENT_ENTRY_LIMIT, isArchive: false });
       calculateStatistics(currentDayEntries);
       populateDataLists(allEntries);
+      if (typeof renderModalEntriesView === 'function') {
+        renderModalEntriesView(allEntries);
+      }
       if(allEntriesPanelCard && allEntriesPanelCard.style.display !== 'none') {
         updateAllEntriesView();
       }
@@ -1347,6 +1356,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (btnAllEntriesAddLog) btnAllEntriesAddLog.addEventListener('click', openLogModal);
   if (btnOpenAddFromCustom) btnOpenAddFromCustom.addEventListener('click', openLogModal);
   if (btnCloseLogModal) btnCloseLogModal.addEventListener('click', closeLogModal);
+  const btnModalViewEntries = document.getElementById('btn-modal-view-entries');
+  if (btnModalViewEntries) {
+    btnModalViewEntries.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (typeof toggleModalEntriesView === 'function') toggleModalEntriesView();
+    });
+  }
   if (supervisorLogModal) {
     supervisorLogModal.addEventListener('click', (e) => {
       if (e.target === supervisorLogModal) closeLogModal();
@@ -3552,8 +3568,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  if (btnViewCustomEntries) {
+    btnViewCustomEntries.addEventListener('click', (e) => {
+      e.preventDefault();
+      allEntriesViewMode = 'custom-entries';
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
+    });
+  }
+
   // Delegated click listener across the document to guarantee sub-button triggers work even when clicking inner SVG / path
   document.addEventListener('click', (e) => {
+    const modalViewBtn = e.target.closest('#btn-modal-view-entries');
+    if (modalViewBtn) {
+      e.preventDefault();
+      if (typeof toggleModalEntriesView === 'function') toggleModalEntriesView();
+      return;
+    }
+    const customBtn = e.target.closest('#btn-view-custom-entries');
+    if (customBtn) {
+      e.preventDefault();
+      allEntriesViewMode = 'custom-entries';
+      applyAllEntriesViewMode();
+      updateAllEntriesView();
+      return;
+    }
     const guestwiseBtn = e.target.closest('#btn-view-guestwise');
     if (guestwiseBtn) {
       e.preventDefault();
@@ -3977,6 +4016,102 @@ document.addEventListener('DOMContentLoaded', async () => {
     lucide.createIcons();
   }
 
+  // Render Entries Table inside Add Entries (Log Form) Modal
+  function renderModalEntriesView(entries) {
+    const tableBody = document.getElementById('modal-entries-table-body');
+    if (!tableBody) return;
+
+    let source = entries || allEntries || [];
+    const curDate = (typeof currentBusinessDateStr !== 'undefined' && currentBusinessDateStr) ? currentBusinessDateStr : '';
+    if (curDate) {
+      const forDate = source.filter(e => (e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '')) === curDate);
+      if (forDate.length > 0) source = forDate;
+    }
+
+    if (!source || source.length === 0) {
+      tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:25px; color:var(--text-muted); font-weight:700;">No records found. Enter a record above and click SAVE.</td></tr>`;
+      return;
+    }
+
+    const sorted = [...source].sort((a, b) => new Date(b.datetime || 0) - new Date(a.datetime || 0));
+
+    let rowsHtml = '';
+    sorted.forEach(entry => {
+      let timeStr = '-';
+      if (entry.datetime) {
+        if (entry.datetime.includes('T')) {
+          timeStr = entry.datetime.split('T')[1].split('.')[0].slice(0, 8);
+        } else if (entry.datetime.includes(' ')) {
+          timeStr = entry.datetime.split(' ')[1].slice(0, 8);
+        } else {
+          timeStr = entry.datetime;
+        }
+      }
+
+      const cdStr = escapeHTML(entry.cd || '-');
+      const cashierStr = escapeHTML(entry.cashier || '-');
+      const rawType = (entry.type || '').toUpperCase();
+      let typeBadge = { cls: 'badge-synced', label: rawType || '-' };
+      if (['CASHIN', 'C/IN', 'ISSUE', 'KEYIN', 'BUY IN'].includes(rawType)) {
+        typeBadge = { cls: 'badge-credit', label: rawType };
+      } else if (['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT', 'WIN'].includes(rawType)) {
+        typeBadge = { cls: 'badge-debit', label: rawType };
+      }
+
+      const numAmt = Number(entry.amount) || 0;
+      const isCredit = ['CASHIN', 'C/IN', 'ISSUE', 'KEYIN', 'BUY IN'].includes(rawType);
+      const isDebit = ['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT', 'WIN'].includes(rawType);
+      const amtFormatted = formatCurrency(Math.abs(numAmt));
+      let amtColorClass = 'text-neutral';
+      let signPrefix = '';
+      if (isCredit) {
+        amtColorClass = 'text-green';
+        signPrefix = '+';
+      } else if (isDebit || numAmt < 0) {
+        amtColorClass = 'text-red';
+        signPrefix = '-';
+      }
+
+      const guestNameStr = escapeHTML(entry.guestname || '-');
+      const cardStr = entry.card ? `<code style="background:rgba(255,255,255,0.06); padding:2px 6px; border-radius:4px; color:#cbd5e1;">${escapeHTML(entry.card)}</code>` : '<span style="color:var(--text-muted)">—</span>';
+      const otherInfoStr = entry.otherinfo ? escapeHTML(entry.otherinfo) : '<span style="color:var(--text-muted)">—</span>';
+
+      rowsHtml += `
+        <tr>
+          <td><strong style="font-family: monospace; font-size: 0.9rem; color: #cbd5e1;">${timeStr}</strong></td>
+          <td><span style="color: #38bdf8; font-weight: 700; font-size: 0.88rem;">${cdStr}</span></td>
+          <td><span style="color: #fbbf24; font-weight: 700; font-size: 0.88rem;">${cashierStr}</span></td>
+          <td><span class="badge ${typeBadge.cls}">${typeBadge.label}</span></td>
+          <td class="table-amount ${amtColorClass}" style="font-weight: 800; font-size: 0.92rem;">${signPrefix}${amtFormatted}</td>
+          <td><strong style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">${guestNameStr}</strong></td>
+          <td>${cardStr}</td>
+          <td title="${escapeHTML(entry.otherinfo || '')}">
+            <div style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${otherInfoStr}
+            </div>
+          </td>
+        </tr>
+      `;
+    });
+
+    tableBody.innerHTML = rowsHtml;
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  function toggleModalEntriesView() {
+    const view = document.getElementById('modal-entries-view');
+    const btn = document.getElementById('btn-modal-view-entries');
+    if (!view) return;
+    if (view.style.display === 'none') {
+      view.style.display = 'block';
+      if (btn) btn.classList.add('active');
+      renderModalEntriesView(allEntries);
+    } else {
+      view.style.display = 'none';
+      if (btn) btn.classList.remove('active');
+    }
+  }
+
   if(btnExportAll) {
     btnExportAll.addEventListener('click', async () => {
       const dateVal = allEntriesDatePicker ? allEntriesDatePicker.value : '';
@@ -4111,34 +4246,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     const grid = document.getElementById('cashier-options-grid');
     if (!grid) return;
     const q = (query || '').trim().toUpperCase();
-    const all = getAllKnownCashiers();
 
-    let matches = all;
-    if (q) {
-      matches = all.filter(c => c.toUpperCase().includes(q));
-      matches.sort((a, b) => {
-        const aStarts = a.toUpperCase().startsWith(q) ? 0 : 1;
-        const bStarts = b.toUpperCase().startsWith(q) ? 0 : 1;
-        if (aStarts !== bStarts) return aStarts - bStarts;
-        return a.localeCompare(b);
-      });
-    }
-
-    if (matches.length === 0) {
-      grid.innerHTML = `<div style="padding: 7px 10px; font-size: 0.72rem; color: var(--text-muted); font-style: italic;">No match "${escapeHTML(q)}" (Press Enter to keep)</div>`;
+    // Cashier previous suggestions deleted: ONLY show when user starts typing!
+    if (!q) {
+      grid.innerHTML = '';
+      grid.style.display = 'none';
       return;
     }
 
+    const all = getAllKnownCashiers();
+    const matches = all.filter(c => c.toUpperCase().includes(q));
+    matches.sort((a, b) => {
+      const aStarts = a.toUpperCase().startsWith(q) ? 0 : 1;
+      const bStarts = b.toUpperCase().startsWith(q) ? 0 : 1;
+      if (aStarts !== bStarts) return aStarts - bStarts;
+      return a.localeCompare(b);
+    });
+
+    if (matches.length === 0) {
+      grid.innerHTML = `<div style="padding: 7px 10px; font-size: 0.72rem; color: var(--text-muted); font-style: italic;">No match "${escapeHTML(q)}" (Press Enter to keep)</div>`;
+      grid.style.display = 'flex';
+      return;
+    }
+
+    grid.style.display = 'flex';
     grid.innerHTML = matches.slice(0, 12).map(c => {
       let displayHtml = escapeHTML(c);
-      if (q) {
-        const idx = c.toUpperCase().indexOf(q);
-        if (idx !== -1) {
-          const pre = c.slice(0, idx);
-          const matched = c.slice(idx, idx + q.length);
-          const post = c.slice(idx + q.length);
-          displayHtml = `${escapeHTML(pre)}<span style="color:#38bdf8; font-weight:800; text-decoration:underline;">${escapeHTML(matched)}</span>${escapeHTML(post)}`;
-        }
+      const idx = c.toUpperCase().indexOf(q);
+      if (idx !== -1) {
+        const pre = c.slice(0, idx);
+        const matched = c.slice(idx, idx + q.length);
+        const post = c.slice(idx + q.length);
+        displayHtml = `${escapeHTML(pre)}<span style="color:#38bdf8; font-weight:800; text-decoration:underline;">${escapeHTML(matched)}</span>${escapeHTML(post)}`;
       }
       return `<div class="inline-option-item" data-value="${escapeHTML(c)}">${displayHtml}</div>`;
     }).join('');
@@ -4529,13 +4668,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
-  // Live dynamic suggestions for Cashier as the user types
+  // Live dynamic suggestions for Cashier as the user types (hidden initially, starts on type)
   if (inputCashier) {
     inputCashier.addEventListener('input', (e) => {
       renderCashierSuggestions(e.target.value);
     });
     inputCashier.addEventListener('focus', () => {
-      renderCashierSuggestions(inputCashier.value);
+      if (inputCashier.value.trim()) {
+        renderCashierSuggestions(inputCashier.value);
+      } else {
+        const grid = document.getElementById('cashier-options-grid');
+        if (grid) {
+          grid.innerHTML = '';
+          grid.style.display = 'none';
+        }
+      }
     });
   }
 

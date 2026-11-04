@@ -1,3 +1,11 @@
+// Top-level crash prevention: keep running forever without expiring or crashing
+process.on('uncaughtException', (err) => {
+  console.error(`[${new Date().toISOString()}] [CRASH PREVENTED] Uncaught Exception:`, err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error(`[${new Date().toISOString()}] [CRASH PREVENTED] Unhandled Rejection:`, reason);
+});
+
 const http = require('http');
 const fs = require('fs');
 const path = require('path');

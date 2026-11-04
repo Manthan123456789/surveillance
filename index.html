@@ -24,7 +24,7 @@
   <script src="jszip.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="style.css?v=30">
+  <link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 
@@ -503,6 +503,7 @@
               <i data-lucide="file-spreadsheet" style="width:17px;height:17px;color:#10b981;"></i>
             </button>
 
+
             <!-- Entries By Guest Wise View Toggle -->
             <button id="btn-view-guestwise" class="all-entries-toggle-btn" title="Entries By Guest Wise" style="width: 38px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px;">
               <i data-lucide="users" style="width:17px;height:17px;color:#a78bfa;"></i>
@@ -557,6 +558,27 @@
           <!-- EXCEL WORKBOOK SPREADSHEET VIEW -->
           <div id="all-entries-excel-view" class="all-entries-scroll-area excel-sheet-viewer" style="display: none; padding: 10px; overflow: auto;">
             <!-- Rendered Excel sheet HTML -->
+          </div>
+
+          <!-- CUSTOM FORM ENTRIES TABLE VIEW (TIME, CD, CASHIER, TYPE, AMOUNT, GUEST NAME, CARD, OTHER INFO) -->
+          <div id="all-entries-custom-view" class="all-entries-scroll-area" style="display: none;">
+            <table class="logs-table custom-entries-table">
+              <thead>
+                <tr>
+                  <th>TIME</th>
+                  <th>CD</th>
+                  <th>CASHIER</th>
+                  <th>TYPE</th>
+                  <th>AMOUNT</th>
+                  <th>GUEST NAME</th>
+                  <th>CARD</th>
+                  <th>OTHER INFO</th>
+                </tr>
+              </thead>
+              <tbody id="all-entries-custom-table-body">
+                <!-- Dynamically populated by renderAllEntriesCustomView -->
+              </tbody>
+            </table>
           </div>
 
           <!-- ENTRIES BY GUEST WISE VIEW -->
@@ -617,7 +639,13 @@
           <span style="font-size: 1.4rem; font-weight: 900; line-height: 1; color: #a78bfa; display: inline-block;">+</span>
           <span>ADD ENTRIES (LOG FORM)</span>
         </h3>
-        <button id="btn-close-log-modal" class="btn-close" style="background:transparent; border:none; color:var(--text-muted); font-size:1.8rem; cursor:pointer; line-height: 1;" title="Close">&times;</button>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <!-- SUB BUTTON ON ADD ENTRIES: VIEW ENTRIES -->
+          <button type="button" id="btn-modal-view-entries" class="all-entries-toggle-btn active" title="Toggle Entries Table" style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); cursor: pointer;">
+            <i data-lucide="layout-list" style="width: 17px; height: 17px; color: #38bdf8;"></i>
+          </button>
+          <button id="btn-close-log-modal" class="btn-close" style="background:transparent; border:none; color:var(--text-muted); font-size:1.8rem; cursor:pointer; line-height: 1;" title="Close">&times;</button>
+        </div>
       </div>
       <div class="modal-body" id="supervisor-log-modal-body" style="padding: 20px;">
         <form id="entry-form" class="horizontal-form" novalidate>
@@ -626,8 +654,7 @@
             <div class="form-group flex-2">
               <label for="datetime" style="display: none;">Time</label>
               <div class="input-wrapper">
-                <i data-lucide="clock" class="field-icon"></i>
-                <input type="datetime-local" id="datetime" required style="padding-left: 36px; color: #fff; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; font-size: 0.85rem;">
+                <input type="datetime-local" id="datetime" required style="padding: 10px 12px; color: #fff; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px; font-size: 0.85rem;">
               </div>
             </div>
 
@@ -635,8 +662,7 @@
             <div class="form-group flex-1">
               <label for="cd" style="display: none;">CD</label>
               <div class="input-wrapper">
-                <i data-lucide="monitor" class="field-icon"></i>
-                <input type="text" id="cd" placeholder="CD" value="CD-01" required style="padding-left: 36px;">
+                <input type="text" id="cd" placeholder="CD" value="CD-01" required style="padding: 10px 12px;">
               </div>
               <div class="inline-options-list">
                 <div class="inline-option-item">CD-01</div>
@@ -652,17 +678,16 @@
             <div class="form-group flex-1">
               <label for="cashier" style="display: none;">Cashier</label>
               <div class="input-wrapper">
-                <i data-lucide="user-check" class="field-icon"></i>
-                <input type="text" id="cashier" placeholder="CASHIER" autocomplete="off" style="padding-left: 36px;">
+                <input type="text" id="cashier" placeholder="CASHIER" autocomplete="off" style="padding: 10px 12px;">
               </div>
-              <div class="inline-options-list" id="cashier-options-grid"></div>
+              <div class="inline-options-list" id="cashier-options-grid" style="display: none;"></div>
             </div>
 
             <!-- Type -->
             <div class="form-group flex-1-5">
               <label for="type" style="display: none;">Type</label>
               <div class="input-wrapper">
-                <input type="text" id="type" placeholder="TYPE" autocomplete="off" required style="padding-left: 16px;">
+                <input type="text" id="type" placeholder="TYPE" autocomplete="off" required style="padding: 10px 12px;">
               </div>
               <div class="inline-options-list">
                 <div class="inline-option-item">C/IN</div>
@@ -679,8 +704,7 @@
             <div class="form-group flex-1-5">
               <label for="amount" style="display: none;">Amount</label>
               <div class="input-wrapper">
-                <i data-lucide="indian-rupee" class="field-icon"></i>
-                <input type="text" id="amount" placeholder="AMOUNT" autocomplete="off" required>
+                <input type="text" id="amount" placeholder="AMOUNT" autocomplete="off" required style="padding: 10px 12px;">
               </div>
               <div class="inline-options-list">
                 <div class="inline-option-item" data-value="5,00,000">500K</div>
@@ -698,8 +722,7 @@
             <div class="form-group flex-2">
               <label for="guestname" style="display: none;">Guest Name</label>
               <div class="input-wrapper">
-                <i data-lucide="user" class="field-icon"></i>
-                <input type="text" id="guestname" placeholder="GUEST NAME" required>
+                <input type="text" id="guestname" placeholder="GUEST NAME" required style="padding: 10px 12px;">
               </div>
               <div class="inline-options-list" id="guestname-options-grid"></div>
             </div>
@@ -708,8 +731,7 @@
             <div class="form-group flex-1-5">
               <label for="card" style="display: none;">Card (Last 4)</label>
               <div class="input-wrapper">
-                <i data-lucide="credit-card" class="field-icon"></i>
-                <input type="text" id="card" placeholder="CARD" maxlength="10" autocomplete="off">
+                <input type="text" id="card" placeholder="CARD" maxlength="10" autocomplete="off" style="padding: 10px 12px;">
               </div>
               <div class="inline-options-list" id="card-options-grid"></div>
             </div>
@@ -718,8 +740,7 @@
             <div class="form-group flex-2-5">
               <label for="otherinfo" style="display: none;">Other Info</label>
               <div class="input-wrapper">
-                <i data-lucide="info" class="field-icon"></i>
-                <input type="text" id="otherinfo" placeholder="OTHER INFO" autocomplete="off">
+                <input type="text" id="otherinfo" placeholder="OTHER INFO" autocomplete="off" style="padding: 10px 12px;">
               </div>
               <div class="inline-options-list" id="otherinfo-options-grid"></div>
             </div>
@@ -728,8 +749,7 @@
             <div class="form-group flex-1" style="display: none;">
               <label for="surv">SURV</label>
               <div class="input-wrapper read-only">
-                <i data-lucide="eye" class="field-icon"></i>
-                <input type="text" id="surv" placeholder="SURV ID" readonly>
+                <input type="text" id="surv" placeholder="SURV ID" readonly style="padding: 10px 12px;">
               </div>
             </div>
 
@@ -747,6 +767,27 @@
             </div>
           </div>
         </form>
+
+        <!-- SUB VIEW: ENTRIES TABLE INSIDE ADD ENTRIES (TIME, CD, CASHIER, TYPE, AMOUNT, GUEST NAME, CARD, OTHER INFO) -->
+        <div id="modal-entries-view" class="all-entries-scroll-area" style="max-height: 380px; overflow-y: auto; margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px;">
+          <table class="logs-table custom-entries-table">
+            <thead>
+              <tr>
+                <th>TIME</th>
+                <th>CD</th>
+                <th>CASHIER</th>
+                <th>TYPE</th>
+                <th>AMOUNT</th>
+                <th>GUEST NAME</th>
+                <th>CARD</th>
+                <th>OTHER INFO</th>
+              </tr>
+            </thead>
+            <tbody id="modal-entries-table-body">
+              <!-- Dynamically populated by JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -957,7 +998,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=62"></script>
+  <script src="app.js?v=63"></script>
 
   <!-- DIRECT PHOTO UPLOADS -->
   <input type="file" id="direct-photo-barred" accept="image/*" style="display:none;" />

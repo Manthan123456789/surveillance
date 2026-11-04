@@ -1255,7 +1255,13 @@ body {
 .form-group input,
 .form-group select {
   font-size: 0.85rem;
-  padding: 10px 12px 10px 38px;
+  padding: 10px 12px;
+}
+
+.horizontal-form .form-group input,
+.horizontal-form .form-group select {
+  font-size: 0.85rem;
+  padding: 10px 12px !important;
 }
 
 .form-group .field-icon {
@@ -4868,4 +4874,16 @@ body.ultra-compact-view {
 .custom-entries-table tbody tr:hover {
   background: rgba(56, 189, 248, 0.06) !important;
 }
+
+#btn-modal-view-entries {
+  transition: all 0.2s ease;
+}
+#btn-modal-view-entries.active {
+  background: rgba(56, 189, 248, 0.25) !important;
+  border-color: #38bdf8 !important;
+}
+#btn-modal-view-entries:hover {
+  background: rgba(56, 189, 248, 0.35) !important;
+}
+
 
