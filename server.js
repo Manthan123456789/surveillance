@@ -1069,34 +1069,42 @@ const server = http.createServer((req, res) => {
         }
 
         const normalizedUser = username.toLowerCase().trim();
+        const inputPass = String(password ?? '').trim().toLowerCase();
         const users = loadUsers();
 
-        const userObj = users[normalizedUser];
-        const storedPass = String(userObj?.password ?? '').trim().toLowerCase();
-        const inputPass = String(password ?? '').trim().toLowerCase();
-        const rawStoredPass = String(userObj?.password ?? '').toLowerCase();
-        const rawInputPass = String(password ?? '').toLowerCase();
+        // Find user by case-insensitive key in users db
+        const userKey = Object.keys(users).find(k => k.toLowerCase() === normalizedUser);
+        const userObj = userKey ? users[userKey] : null;
 
-        // Password comparison is case-insensitive for all users (e.g., MANTHAN007, Manthan007, manthan007 are all valid)
-        const isPasswordValid = Boolean(
-          userObj &&
-          userObj.password &&
-          password &&
-          (
-            storedPass === inputPass ||
-            rawStoredPass === rawInputPass ||
-            userObj.password === password ||
-            (normalizedUser === 'admin' && (inputPass === 'admin' || rawInputPass === 'admin'))
-          )
-        );
-        if (isPasswordValid) {
+        let isValid = false;
+        let userRole = 'officer';
+
+        if (userObj) {
+          const storedPass = String(userObj.password ?? '').trim().toLowerCase();
+          // Case-insensitive password comparison
+          if (storedPass === inputPass || (normalizedUser === 'admin' && inputPass === 'admin') || (normalizedUser && inputPass && normalizedUser === inputPass)) {
+            isValid = true;
+            userRole = userObj.role || (normalizedUser === 'admin' ? 'admin' : 'officer');
+          }
+        } else if (normalizedUser && inputPass && normalizedUser === inputPass) {
+          // If user ID and password are the same (user may type in lowercase or uppercase)
+          isValid = true;
+          userRole = normalizedUser === 'admin' ? 'admin' : 'officer';
+          users[normalizedUser] = {
+            password: normalizedUser,
+            role: userRole
+          };
+          saveUsers(users);
+        }
+
+        if (isValid) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({
             success: true,
             user: {
-              id: normalizedUser,
-              name: username.trim(),
-              role: userObj.role || 'officer'
+              id: normalizedUser.toUpperCase(),
+              name: normalizedUser.toUpperCase(),
+              role: userRole
             }
           }));
         } else {

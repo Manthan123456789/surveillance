@@ -755,7 +755,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       
       if (parsedSession) {
-        currentUser = parsedSession;
+        currentUser = {
+          ...parsedSession,
+          id: String(parsedSession.id || '').toUpperCase(),
+          name: String(parsedSession.name || parsedSession.id || '').toUpperCase()
+        };
+        localStorage.setItem('surv_session', JSON.stringify(currentUser));
         userBadgeId.textContent = currentUser.name;
         inputSurv.value = currentUser.id;
         
@@ -857,8 +862,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error(data.error || 'Login failed.');
       }
 
-      // Save user to session
-      currentUser = data.user;
+      // Save user to session - ALWAYS 100% CAPITAL LETTERS
+      currentUser = {
+        ...data.user,
+        id: String(data.user.id || '').toUpperCase(),
+        name: String(data.user.name || data.user.id || '').toUpperCase()
+      };
       localStorage.setItem('surv_session', JSON.stringify(currentUser));
       localStorage.setItem('surv_last_activity', String(Date.now()));
       lastActivityUpdate = Date.now();
@@ -890,6 +899,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       loginBtn.classList.remove('loading');
     }
   });
+
+  // Automatically convert username to UPPERCASE in real time as user types
+  if (usernameInput) {
+    usernameInput.addEventListener('input', () => {
+      const start = usernameInput.selectionStart;
+      const end = usernameInput.selectionEnd;
+      usernameInput.value = usernameInput.value.toUpperCase();
+      if (start !== null && end !== null) {
+        usernameInput.setSelectionRange(start, end);
+      }
+    });
+  }
 
   // Logout action
   if (btnLogout) btnLogout.addEventListener('click', () => {

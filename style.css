@@ -656,11 +656,14 @@ body {
   flex-shrink: 0;
 }
 
-.profile-name {
+.profile-name,
+#user-badge-id {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px;
 }
 
 .nav-actions {
@@ -2419,9 +2422,14 @@ body {
 /* Force uppercase visually */  
 /* Bulk Delete */.checkbox-col { width: 40px; text-align: center; } .logs-table input[type='checkbox'] { transform: scale(1.2); cursor: pointer; } 
   
-/* Force uppercase visually */  
-input[type="text"]:not(#username):not(#new-user-id):not(#new-user-pass):not([id*="search"]),  
-textarea { text-transform: uppercase; } 
+/* Force uppercase visually across all text inputs, usernames, badges, and labels */  
+input[type="text"]:not([id*="search"]),
+#username,
+#new-user-id,
+#new-user-pass,
+#user-badge-id,
+.profile-name,
+textarea { text-transform: uppercase !important; } 
 
 .inline-options-list { display: flex; flex-direction: column; margin-top: 0; max-height: 250px; overflow-y: auto; border: 1px solid #4b5563; border-radius: 0 0 6px 6px; background: #1f2937; } .inline-option-item { padding: 8px 10px; font-size: 0.75rem; color: #f9fafb; cursor: pointer; border-bottom: 1px solid #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .inline-option-item:hover { background: #374151; color: #60a5fa; font-weight: bold; } .inline-option-item:last-child { border-bottom: none; } .inline-options-list::-webkit-scrollbar { width: 10px; } .inline-options-list::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 5px; } .inline-options-list::-webkit-scrollbar-track { background: #111827; }
 
@@ -3317,16 +3325,6 @@ textarea { text-transform: uppercase; }
 .all-entries-date-btn svg {
   width: clamp(14px, 1.8vw, 17px);
   height: clamp(14px, 1.8vw, 17px);
-}
-  font-weight: 800;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  white-space: nowrap;
 }
 .all-entries-date-btn input[type="date"] {
   background: transparent;
