@@ -833,9 +833,22 @@ const server = http.createServer((req, res) => {
         const users = loadUsers();
 
         const userObj = users[normalizedUser];
-        const isPasswordValid = userObj && (
-          userObj.password === password ||
-          (normalizedUser === 'admin' && (password.toLowerCase() === 'admin'))
+        const storedPass = String(userObj?.password ?? '').trim().toLowerCase();
+        const inputPass = String(password ?? '').trim().toLowerCase();
+        const rawStoredPass = String(userObj?.password ?? '').toLowerCase();
+        const rawInputPass = String(password ?? '').toLowerCase();
+
+        // Password comparison is case-insensitive for all users (e.g., MANTHAN007, Manthan007, manthan007 are all valid)
+        const isPasswordValid = Boolean(
+          userObj &&
+          userObj.password &&
+          password &&
+          (
+            storedPass === inputPass ||
+            rawStoredPass === rawInputPass ||
+            userObj.password === password ||
+            (normalizedUser === 'admin' && (inputPass === 'admin' || rawInputPass === 'admin'))
+          )
         );
         if (isPasswordValid) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
