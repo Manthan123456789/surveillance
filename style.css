@@ -4603,16 +4603,20 @@ body.ultra-compact-view {
   padding: 6px 10px;
   white-space: nowrap;
   vertical-align: middle;
+  text-align: center;
+  font-weight: 700;
 }
 
-/* Yellow Header row matching user requirement */
+/* Light Blue Header row matching user requirement */
 .excel-header-cell {
-  background: #facc15 !important;
-  color: #000000 !important;
+  background: #9bc2e6 !important;
+  color: #800000 !important;
   font-weight: 800 !important;
   text-transform: uppercase;
-  border: 1px solid #ca8a04 !important;
+  border: 1px solid #000000 !important;
   padding: 8px 12px;
+  text-align: center;
+  vertical-align: middle;
 }
 
 /* Column I & J Spacers */
@@ -4623,54 +4627,76 @@ body.ultra-compact-view {
   width: 16px;
 }
 
-/* Column K Guest Summary Card */
+/* Column I Guest Summary Card */
 .excel-guest-card-cell {
   background: #ffffff;
   color: #000000;
   font-weight: 700;
-  border-left: 2px solid #0f172a !important;
-  border-right: 2px solid #0f172a !important;
+  border: 1px solid #000000 !important;
   padding: 5px 12px;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-top {
-  border-top: 2px solid #0f172a !important;
-  background: #f1f5f9;
-  color: #0f172a;
-  font-size: 13.5px;
+  background: #d9e1f2 !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-in {
-  color: #15803d;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-out {
-  color: #b91c1c;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-result {
-  border-bottom: 2px solid #0f172a !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-result-plus {
-  color: #15803d !important;
-  font-weight: 800 !important;
+  background: #c6efce !important;
+  color: #006100 !important;
+  font-weight: 700 !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-result-minus {
-  color: #dc2626 !important;
-  font-weight: 800 !important;
+  background: #ffc7ce !important;
+  color: #9c0006 !important;
+  font-weight: 700 !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-result-zero {
-  color: #64748b !important;
+  background: #c6efce !important;
+  color: #006100 !important;
   font-weight: 700 !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .excel-card-blank {
-  background: transparent;
-  border: none !important;
-  height: 12px;
+  background: #ffff00 !important;
+  height: 20px;
+  border: 1px solid #000000 !important;
+  text-align: center;
+  vertical-align: middle;
 }
 
 .btn-barred-toggle-view.active {

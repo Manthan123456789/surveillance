@@ -4,6 +4,15 @@ const path = require('path');
 const cron = require('node-cron');
 const xlsx = require('xlsx');
 
+let JSZip;
+try {
+  JSZip = require(path.join(__dirname, 'public', 'jszip.min.js'));
+} catch (e) {
+  try {
+    JSZip = require('./public/jszip.min.js');
+  } catch (e2) {}
+}
+
 const PORT = process.env.PORT || 3000;
 
 // Helper to get executable directory for pkg
@@ -277,6 +286,192 @@ try {
   console.error("Migration error:", err);
 }
 
+const customStylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1">
+    <numFmt numFmtId="164" formatCode="#,##0"/>
+  </numFmts>
+  <fonts count="5">
+    <!-- 0: Regular -->
+    <font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>
+    <!-- 1: Bold Black -->
+    <font><b/><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/></font>
+    <!-- 2: Bold Dark Maroon/Red for Header -->
+    <font><b/><sz val="11"/><color rgb="FF800000"/><name val="Calibri"/></font>
+    <!-- 3: Bold Red -->
+    <font><b/><sz val="11"/><color rgb="FF9C0006"/><name val="Calibri"/></font>
+    <!-- 4: Bold Green -->
+    <font><b/><sz val="11"/><color rgb="FF006100"/><name val="Calibri"/></font>
+  </fonts>
+  <fills count="7">
+    <!-- 0: none -->
+    <fill><patternFill patternType="none"/></fill>
+    <!-- 1: gray125 -->
+    <fill><patternFill patternType="gray125"/></fill>
+    <!-- 2: Light Blue Header #9BC2E6 -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FF9BC2E6"/></patternFill></fill>
+    <!-- 3: Bright Yellow Separator #FFFF00 -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/></patternFill></fill>
+    <!-- 4: Soft Red Fill #FFC7CE -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFC7CE"/></patternFill></fill>
+    <!-- 5: Fluorescent Green Fill #C6EFCE -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFC6EFCE"/></patternFill></fill>
+    <!-- 6: Soft Ice Blue Fill for Guest Name Box #D9E1F2 -->
+    <fill><patternFill patternType="solid"><fgColor rgb="FFD9E1F2"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <!-- 0: None -->
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <!-- 1: Thin Black All Borders -->
+    <border>
+      <left style="thin"><color rgb="FF000000"/></left>
+      <right style="thin"><color rgb="FF000000"/></right>
+      <top style="thin"><color rgb="FF000000"/></top>
+      <bottom style="thin"><color rgb="FF000000"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+  </cellStyleXfs>
+  <cellXfs count="9">
+    <!-- 0: Normal -->
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <!-- 1: Header (Light Blue, Bold Maroon, Centered & Middle Align, All Borders) -->
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <!-- 2: Data Text / Regular Cells (Bold Black, Centered & Middle Align, All Borders) -->
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+    <!-- 3: Data Amount (Bold Black, Centered & Middle Align, All Borders, Comma Format) -->
+    <xf numFmtId="164" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 4: Yellow Separator Cell in Guest Summary (Solid Yellow Fill, All Borders) -->
+    <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 5: Empty Cell with Borders and Centered Alignment -->
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 6: Red Style for Negative RESULT (Soft Red Fill, Bold Red Text, Centered & Middle Align, All Borders) -->
+    <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 7: Fluorescent Green Style for Positive RESULT (Fluorescent Green Fill, Bold Green Text, Centered & Middle Align, All Borders) -->
+    <xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center"/>
+    </xf>
+    <!-- 8: Guest Name Box (Soft Ice Blue Fill, Bold Black Text, Centered & Middle Align, All Borders) -->
+    <xf numFmtId="0" fontId="1" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+      <alignment horizontal="center" vertical="center" wrapText="1"/>
+    </xf>
+  </cellXfs>
+</styleSheet>`;
+
+async function applyExcelStyles(buffer) {
+  if (!JSZip) return buffer;
+  try {
+    const zip = new JSZip();
+    const loadedZip = await zip.loadAsync(buffer);
+    loadedZip.file('xl/styles.xml', customStylesXml);
+
+    const sheetFiles = Object.keys(loadedZip.files).filter(name => name.startsWith('xl/worksheets/sheet') && name.endsWith('.xml'));
+
+    for (const sheetFile of sheetFiles) {
+      let xml = await loadedZip.file(sheetFile).async('string');
+
+      // Style header row 1
+      xml = xml.replace(/(<row r="1"[^>]*>)([\s\S]*?)(<\/row>)/, (match, openTag, rowContent, closeTag) => {
+        const styledContent = rowContent.replace(/<c r="([A-I])1"([^>]*)>/g, '<c r="$11" s="1"$2>');
+        return openTag + styledContent + closeTag;
+      });
+
+      // Style data rows
+      xml = xml.replace(/<row r="([0-9]+)"([^>]*>)([\s\S]*?)(<\/row>)/g, (match, rowNumStr, rowTagRest, rowContent, closeTag) => {
+        const r = parseInt(rowNumStr, 10);
+        if (r === 1) return match;
+
+        const cellMap = {};
+        const cellRegex = /<c r="([A-I])\d+"([^>]*)>(?:<v>([\s\S]*?)<\/v>)?<\/c>|<c r="([A-I])\d+"([^>]*)\/>/g;
+        let m;
+        while ((m = cellRegex.exec(rowContent)) !== null) {
+          const col = m[1] || m[4];
+          const attrs = m[2] || m[5] || '';
+          const body = m[3] || '';
+          cellMap[col] = { col, attrs, body };
+        }
+
+        const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        let newRowContent = '';
+
+        for (const col of cols) {
+          const cellRef = col + r;
+          const existing = cellMap[col];
+          let val = existing ? existing.body : '';
+
+          if (col === 'I') {
+            if (val === '__YELLOW__') {
+              newRowContent += `<c r="${cellRef}" s="4"/>`;
+            } else if (val.includes('__POS__')) {
+              val = val.replace('__POS__', '');
+              newRowContent += `<c r="${cellRef}" s="7" t="str"><v>${val}</v></c>`;
+            } else if (val.includes('__NEG__')) {
+              val = val.replace('__NEG__', '');
+              newRowContent += `<c r="${cellRef}" s="6" t="str"><v>${val}</v></c>`;
+            } else if (val.startsWith('GUEST NAME:')) {
+              // Particular Guest Box header with soft ice blue background
+              newRowContent += `<c r="${cellRef}" s="8" t="str"><v>${val}</v></c>`;
+            } else if (val) {
+              // TOTAL IN and TOTAL OUT do not have background color (clean bold s="2")
+              newRowContent += `<c r="${cellRef}" s="2" t="str"><v>${val}</v></c>`;
+            } else {
+              newRowContent += `<c r="${cellRef}" s="5"/>`;
+            }
+          } else if (col === 'D') {
+            if (val && !isNaN(val)) {
+              newRowContent += `<c r="${cellRef}" s="3" t="n"><v>${val}</v></c>`;
+            } else if (val) {
+              newRowContent += `<c r="${cellRef}" s="2" t="str"><v>${val}</v></c>`;
+            } else {
+              newRowContent += `<c r="${cellRef}" s="5"/>`;
+            }
+          } else {
+            if (val) {
+              newRowContent += `<c r="${cellRef}" s="2" t="str"><v>${val}</v></c>`;
+            } else {
+              newRowContent += `<c r="${cellRef}" s="5"/>`;
+            }
+          }
+        }
+
+        return `<row r="${r}"${rowTagRest}${newRowContent}${closeTag}`;
+      });
+
+      loadedZip.file(sheetFile, xml);
+    }
+
+    return await loadedZip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' });
+  } catch (err) {
+    console.error('Failed to apply Excel styles, returning original buffer:', err);
+    return buffer;
+  }
+}
+
+async function writeStyledWorkbook(workbook, filePath) {
+  try {
+    const rawBuffer = xlsx.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    const styledBuffer = await applyExcelStyles(rawBuffer);
+    fs.writeFileSync(filePath, styledBuffer);
+  } catch (err) {
+    console.error('Failed to write styled workbook, falling back to standard write:', err);
+    xlsx.writeFile(workbook, filePath);
+  }
+}
+
 function getArchiveWorkbookPath(year, month) {
   return path.join(ARCHIVE_DIR, `${year}-${month}.xlsx`);
 }
@@ -338,7 +533,7 @@ function computeGuestSummaries(entries) {
 
   const guestList = Object.values(guestMap);
   guestList.forEach(g => {
-    g.result = g.totalIn - g.totalOut;
+    g.result = (g.totalOut || 0) - (g.totalIn || 0);
   });
 
   // Sort by highest buying (totalIn) first
@@ -349,7 +544,7 @@ function computeGuestSummaries(entries) {
 function buildWorksheetForDay(entries) {
   const aoa = [];
   
-  // Header row (Row 1 in Excel) - ALL CAPITAL LETTERS
+  // Header row (Row 1 in Excel) - ALL CAPITAL LETTERS & PROFESSIONAL LABELS
   const header = [
     'DATE & TIME',
     'SURV ID',
@@ -359,7 +554,7 @@ function buildWorksheetForDay(entries) {
     'CARD',
     'OTHER INFO',
     'SENTENCE FORMAT',
-    '' // Column I holds the first summary card line at I1
+    'GUEST SUMMARY'
   ];
   aoa.push(header);
 
@@ -367,7 +562,9 @@ function buildWorksheetForDay(entries) {
   const guestSummaries = computeGuestSummaries(entries);
 
   // Determine row count
-  const maxRows = Math.max(entries.length, guestSummaries.length * 5);
+  const cardRowCount = guestSummaries.length > 0 ? (guestSummaries.length * 5) : 0;
+  const maxRows = Math.max(entries.length, cardRowCount);
+
   for (let i = 0; i < maxRows; i++) {
     const row = new Array(9).fill('');
     
@@ -387,49 +584,79 @@ function buildWorksheetForDay(entries) {
     aoa.push(row);
   }
 
-  // Populate Guest Summary Cards starting directly at COLUMN I (cell I1) - ALL CAPITAL LETTERS & INDIAN RUPEE FORMAT
-  let cardRow = 0;
+  // Populate Guest Summary Cards starting directly at COLUMN I (Row 2, below GUEST SUMMARY header)
+  let cardRow = 1;
   guestSummaries.forEach(g => {
     const upperName = String(g.name || '').toUpperCase();
     const inStr = Number(g.totalIn || 0).toLocaleString('en-IN');
     const outStr = Number(g.totalOut || 0).toLocaleString('en-IN');
-    const resStr = Number(g.result || 0).toLocaleString('en-IN');
+    const resVal = Number(g.result || 0);
+    const resStr = Math.abs(resVal).toLocaleString('en-IN');
+    const marker = resVal < 0 ? '__NEG__' : '__POS__';
 
-    // Row 1 of card (Cell I1, I6, I11...)
+    while (aoa.length <= cardRow + 4) {
+      aoa.push(new Array(9).fill(''));
+    }
+
+    // Row 1 of card
     aoa[cardRow][8] = `GUEST NAME: ${upperName}`;
-
-    // Row 2 of card (Cell I2, I7, I12...)
-    if (!aoa[cardRow + 1]) aoa[cardRow + 1] = new Array(9).fill('');
+    // Row 2 of card
     aoa[cardRow + 1][8] = `TOTAL IN: ${inStr}`;
-
-    // Row 3 of card (Cell I3, I8, I13...)
-    if (!aoa[cardRow + 2]) aoa[cardRow + 2] = new Array(9).fill('');
+    // Row 3 of card
     aoa[cardRow + 2][8] = `TOTAL OUT: ${outStr}`;
-
-    // Row 4 of card (Cell I4, I9, I14...)
-    if (!aoa[cardRow + 3]) aoa[cardRow + 3] = new Array(9).fill('');
-    aoa[cardRow + 3][8] = `RESULT: ${resStr}`;
-
-    // Row 5 is blank separator (Cell I5, I10, I15...)
-    if (!aoa[cardRow + 4]) aoa[cardRow + 4] = new Array(9).fill('');
+    // Row 4 of card (No +/- sign, Indian Rupee format, marker stripped during XML styling)
+    aoa[cardRow + 3][8] = `RESULT: ${resStr}${marker}`;
+    // Row 5: Clean divider (marked for yellow background)
+    aoa[cardRow + 4][8] = '__YELLOW__';
 
     cardRow += 5;
   });
 
   const ws = xlsx.utils.aoa_to_sheet(aoa);
-  
-  // Set column widths for clean display
-  ws['!cols'] = [
-    { wch: 18 }, // A: DATE & TIME
-    { wch: 10 }, // B: SURV ID
-    { wch: 10 }, // C: TYPE
-    { wch: 12 }, // D: AMOUNT
-    { wch: 16 }, // E: GUEST NAME
-    { wch: 12 }, // F: CARD
-    { wch: 14 }, // G: OTHER INFO
-    { wch: 28 }, // H: SENTENCE FORMAT
-    { wch: 26 }  // I: GUEST SUMMARY CARDS (starting directly at cell I1)
+
+  // Set standard comma number format for Amount column (Col D)
+  for (let r = 1; r <= entries.length; r++) {
+    const cellRef = xlsx.utils.encode_cell({ r: r, c: 3 });
+    if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
+      ws[cellRef].z = '#,##0';
+    }
+  }
+
+  // Dynamic Auto-fit for all column widths based on maximum content length
+  const defaultMinWidths = [
+    20, // A: DATE & TIME
+    12, // B: SURV ID
+    12, // C: TYPE
+    16, // D: AMOUNT
+    24, // E: GUEST NAME
+    14, // F: CARD
+    18, // G: OTHER INFO
+    42, // H: SENTENCE FORMAT
+    34  // I: GUEST SUMMARY
   ];
+
+  const colWidths = [];
+  for (let c = 0; c < 9; c++) {
+    let maxLen = 0;
+    for (let r = 0; r < aoa.length; r++) {
+      let val = aoa[r] ? aoa[r][c] : '';
+      if (val !== undefined && val !== null && val !== '') {
+        val = String(val).replace('__POS__', '').replace('__NEG__', '').replace('__YELLOW__', '');
+        const str = (typeof val === 'number') ? val.toLocaleString('en-IN') : String(val);
+        if (str.length > maxLen) maxLen = str.length;
+      }
+    }
+    const minW = defaultMinWidths[c] || 12;
+    colWidths.push({ wch: Math.max(maxLen + 4, minW) });
+  }
+  ws['!cols'] = colWidths;
+
+  // Auto-fit row heights for clean, spacious presentation
+  const rowHeights = [{ hpt: 26 }]; // Header row
+  for (let r = 1; r < aoa.length; r++) {
+    rowHeights.push({ hpt: 20 }); // Data rows
+  }
+  ws['!rows'] = rowHeights;
 
   return ws;
 }
@@ -439,19 +666,19 @@ function readSheetEntries(ws) {
   const rows = xlsx.utils.sheet_to_json(ws, { defval: '' });
   return rows.map(r => ({
     id: r.id || r.ID || null,
-    datetime: r['Date & Time'] || r.datetime || '',
-    surv: r['SURV ID'] || r.surv || '',
+    datetime: r['DATE & TIME'] || r['Date & Time'] || r.datetime || '',
+    surv: r['SURV ID'] || r['Surv ID'] || r.surv || '',
     cd: r['C / D'] || r.cd || '',
     cashier: r.Cashier || r.cashier || '',
-    type: r.Type || r.type || '',
-    amount: Number(r.Amount || r.amount) || 0,
-    guestname: r['Guest Name'] || r.guestname || '',
-    card: r.Card || r.card || '',
-    otherinfo: r['Other Info'] || r.otherinfo || ''
+    type: r['TYPE'] || r.Type || r.type || '',
+    amount: Number(r['AMOUNT'] || r.Amount || r.amount) || 0,
+    guestname: r['GUEST NAME'] || r['Guest Name'] || r.guestname || '',
+    card: r['CARD'] || r.Card || r.card || '',
+    otherinfo: r['OTHER INFO'] || r['Other Info'] || r.otherinfo || ''
   })).filter(e => e.datetime && (e.type || e.amount || e.guestname));
 }
 
-function saveEntriesToArchive(entries) {
+async function saveEntriesToArchive(entries) {
   if (!Array.isArray(entries) || entries.length === 0) {
     return [];
   }
@@ -477,7 +704,7 @@ function saveEntriesToArchive(entries) {
     groupedByMonth[workbookKey][day].push(entry);
   });
 
-  Object.entries(groupedByMonth).forEach(([workbookKey, days]) => {
+  for (const [workbookKey, days] of Object.entries(groupedByMonth)) {
     const [year, month] = workbookKey.split('-');
     const workbookPath = ensureArchiveWorkbook(year, month);
     let workbook;
@@ -518,15 +745,15 @@ function saveEntriesToArchive(entries) {
     // Ensure sheets 1 to 31 are in numerical order
     workbook.SheetNames.sort((a, b) => Number(a) - Number(b));
 
-    xlsx.writeFile(workbook, workbookPath);
+    await writeStyledWorkbook(workbook, workbookPath);
     archiveFiles.add(workbookPath);
     console.log(`Saved monthly archive with sheets 1-31: ${workbookPath}`);
-  });
+  }
 
   return Array.from(archiveFiles);
 }
 
-function archiveActiveEntries() {
+async function archiveActiveEntries() {
   const files = fs.existsSync(ENTRIES_DIR) ? fs.readdirSync(ENTRIES_DIR) : [];
   const jsonFiles = files.filter(f => f.endsWith('.json') && f !== 'users_db.json' && f !== 'business_date_state.json');
   if (jsonFiles.length === 0) {
@@ -549,7 +776,7 @@ function archiveActiveEntries() {
     return { archived: false, message: 'No entries to archive.' };
   }
 
-  const archivePaths = saveEntriesToArchive(entries);
+  const archivePaths = await saveEntriesToArchive(entries);
   
   entries.forEach(entry => {
     const filePath = path.join(ENTRIES_DIR, entry._file);
@@ -561,7 +788,7 @@ function archiveActiveEntries() {
   return { archived: true, count: entries.length, archivePaths, archivedEntries: entries };
 }
 
-function exportEntriesToExcel(entries, dateStr) {
+async function exportEntriesToExcel(entries, dateStr) {
   if (!entries || entries.length === 0) return;
   try {
     const ws = buildWorksheetForDay(entries);
@@ -570,7 +797,7 @@ function exportEntriesToExcel(entries, dateStr) {
 
     const fileName = `Export_${dateStr.replace(/-/g, '')}.xlsx`;
     const exportPath = path.join(EXPORTS_DIR, fileName);
-    xlsx.writeFile(workbook, exportPath);
+    await writeStyledWorkbook(workbook, exportPath);
     console.log(`Exported ${entries.length} entries to Excel: ${exportPath}`);
   } catch (err) {
     console.error('Failed to export entries to Excel:', err);
@@ -622,7 +849,7 @@ function readArchiveEntries(year, month) {
   return entries;
 }
 
-function checkAndPerformDailyReset(source = 'cron') {
+async function checkAndPerformDailyReset(source = 'cron') {
   const nowMs = Date.now();
   const state = loadBusinessDateState();
 
@@ -637,11 +864,11 @@ function checkAndPerformDailyReset(source = 'cron') {
   const finishedBusinessDate = state.currentBusinessDate;
 
   try {
-    const result = archiveActiveEntries();
+    const result = await archiveActiveEntries();
     if (result.archived) {
       console.log(`[Daily Reset - ${source}] Archived ${result.count} active entries to: ${result.archivePaths.join(', ')}`);
       if (result.archivedEntries && result.archivedEntries.length > 0) {
-        exportEntriesToExcel(result.archivedEntries, finishedBusinessDate);
+        await exportEntriesToExcel(result.archivedEntries, finishedBusinessDate);
       }
     } else {
       console.log(`[Daily Reset - ${source}] No active entries found to archive.`);
@@ -670,24 +897,28 @@ function startDailyArchiveJob() {
 
   // 1. Check if an auto-reset was missed while server was offline
   try {
-    checkAndPerformDailyReset('startup');
+    checkAndPerformDailyReset('startup').catch(e => console.error('Startup reset check failed:', e));
   } catch (err) {
     console.error('Startup reset check failed:', err);
   }
 
   // 2. Schedule everyday at 06:00 AM Indian Standard Time (Asia/Kolkata)
-  cron.schedule('0 6 * * *', () => {
+  cron.schedule('0 6 * * *', async () => {
     console.log(`[${new Date().toISOString()}] 06:00 AM IST Cron triggered.`);
-    checkAndPerformDailyReset('cron-0600-ist');
+    try {
+      await checkAndPerformDailyReset('cron-0600-ist');
+    } catch (err) {
+      console.error('Cron daily reset error:', err);
+    }
   }, {
     scheduled: true,
     timezone: "Asia/Kolkata"
   });
 
   // 3. Periodic safety check every 5 minutes (catches wake-ups after cloud host spin-downs or machine sleep)
-  setInterval(() => {
+  setInterval(async () => {
     try {
-      checkAndPerformDailyReset('interval-check');
+      await checkAndPerformDailyReset('interval-check');
     } catch (e) {}
   }, 5 * 60 * 1000);
 }
@@ -1551,15 +1782,15 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/newday' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const data = body ? JSON.parse(body) : {};
         const finishedDate = currentBusinessDate;
-        const result = archiveActiveEntries();
+        const result = await archiveActiveEntries();
         
         if (result.archived && result.archivedEntries && result.archivedEntries.length > 0) {
           try {
-            exportEntriesToExcel(result.archivedEntries, finishedDate);
+            await exportEntriesToExcel(result.archivedEntries, finishedDate);
           } catch (e) {
             console.error('Failed to export to excel on manual new day:', e);
           }
