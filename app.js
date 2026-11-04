@@ -1731,18 +1731,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let html = `
-      <div style="overflow-x: auto; max-width: 100%;">
-        <table class="excel-grid-table">
+      <div style="width: 100%; max-width: 100%; overflow: hidden;">
+        <table class="excel-grid-table" style="width: 100%; table-layout: fixed;">
           <thead>
             <tr class="excel-col-letter-row">
-              <th class="excel-row-num"></th>
-              <th style="min-width:70px;">A</th>
-              <th style="min-width:150px;">B</th>
-              <th style="min-width:100px;">C</th>
-              <th style="min-width:200px;">D</th>
-              <th style="min-width:130px;">E</th>
-              <th style="min-width:130px;">F</th>
-              <th style="min-width:180px;">G</th>
+              <th class="excel-row-num" style="width: 3%;"></th>
+              <th style="width: 8%;">A</th>
+              <th style="width: 18%;">B</th>
+              <th style="width: 10%;">C</th>
+              <th style="width: 25%;">D</th>
+              <th style="width: 12%;">E</th>
+              <th style="width: 12%;">F</th>
+              <th style="width: 12%;">G</th>
             </tr>
             <tr>
               <th class="excel-row-num">1</th>
@@ -3656,20 +3656,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     let html = `
-      <div style="overflow-x: auto; max-width: 100%;">
-        <table class="excel-grid-table">
+      <div style="width: 100%; max-width: 100%; overflow: hidden;">
+        <table class="excel-grid-table" style="width: 100%; table-layout: fixed;">
           <thead>
             <tr class="excel-col-letter-row">
-              <th class="excel-row-num"></th>
-              <th style="min-width:140px;">A</th>
-              <th style="min-width:90px;">B</th>
-              <th style="min-width:90px;">C</th>
-              <th style="min-width:100px;">D</th>
-              <th style="min-width:130px;">E</th>
-              <th style="min-width:90px;">F</th>
-              <th style="min-width:120px;">G</th>
-              <th style="min-width:200px;">H</th>
-              <th style="min-width:220px;">I</th>
+              <th class="excel-row-num" style="width: 3%;"></th>
+              <th style="width: 12%;">A</th>
+              <th style="width: 7%;">B</th>
+              <th style="width: 7%;">C</th>
+              <th style="width: 8.5%;">D</th>
+              <th style="width: 12%;">E</th>
+              <th style="width: 6.5%;">F</th>
+              <th style="width: 10%;">G</th>
+              <th style="width: 16%;">H</th>
+              <th style="width: 18%;">I</th>
             </tr>
           </thead>
           <tbody>

@@ -4561,18 +4561,21 @@ body.ultra-compact-view {
   height: 100%;
   box-sizing: border-box;
   background: #0f172a;
-  overflow: auto;
+  overflow-x: hidden !important;
+  overflow-y: auto;
   border-radius: 8px;
 }
 
 .excel-grid-table {
   border-collapse: collapse;
-  width: max-content;
-  min-width: 100%;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed !important;
   background: #ffffff;
   color: #0f172a;
   font-family: Calibri, 'Segoe UI', Tahoma, Arial, sans-serif;
-  font-size: 13px;
+  font-size: 11px;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
@@ -4583,7 +4586,7 @@ body.ultra-compact-view {
   font-weight: 700;
   font-size: 11px;
   text-align: center;
-  padding: 4px 8px;
+  padding: 3px 4px !important;
   border: 1px solid #000000 !important;
   position: sticky;
   top: 0;
@@ -4595,23 +4598,27 @@ body.ultra-compact-view {
   background: #e2e8f0;
   color: #000000;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 10.5px;
   text-align: center;
-  padding: 4px 8px;
+  padding: 3px 4px !important;
   border: 1px solid #000000 !important;
   user-select: none;
-  min-width: 32px;
+  width: 28px !important;
+  min-width: 28px !important;
 }
 
 /* Excel Cell - All cells dark black border */
 .excel-cell {
   border: 1px solid #000000 !important;
-  padding: 6px 10px;
+  padding: 4px 5px !important;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   vertical-align: middle;
   text-align: center;
   font-weight: 700;
   color: #000000;
+  font-size: 11px;
 }
 
 /* Light Blue Header row matching user requirement */
@@ -4621,9 +4628,13 @@ body.ultra-compact-view {
   font-weight: 800 !important;
   text-transform: uppercase;
   border: 1px solid #000000 !important;
-  padding: 8px 12px;
+  padding: 5px 4px !important;
   text-align: center;
   vertical-align: middle;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Column I & J Spacers */
@@ -4640,9 +4651,13 @@ body.ultra-compact-view {
   color: #000000;
   font-weight: 700;
   border: 1px solid #000000 !important;
-  padding: 5px 12px;
+  padding: 3px 5px !important;
   text-align: center;
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
 }
 
 .excel-card-top {
