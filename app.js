@@ -6608,7 +6608,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   function closeAIAssistantModal() {
     if (aiAssistantModal) aiAssistantModal.style.display = 'none';
+    if (aiChatInput) aiChatInput.value = '';
+    if (aiChatMessages) {
+      aiChatMessages.innerHTML = '';
+      renderAIWelcomeMessage();
+    }
   }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && aiAssistantModal && aiAssistantModal.style.display === 'flex') {
+      closeAIAssistantModal();
+    }
+  });
 
   if (btnInputAI) {
     btnInputAI.addEventListener('click', () => {
@@ -6708,6 +6719,65 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // Helper: Extract a target business date from query (DD-MM-YYYY, YYYY-MM-DD, yesterday, on 4th)
+  function extractDateFromQuery(rawStr, fallbackDateStr) {
+    if (!rawStr) return null;
+    const s = String(rawStr).trim().toLowerCase();
+
+    // 1. DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+    const dmyMatch = s.match(/\b([0-2]?\d|3[01])[-/.]([0]?\d|1[0-2])[-/.](20\d{2}|\d{2})\b/);
+    if (dmyMatch) {
+      const day = String(dmyMatch[1]).padStart(2, '0');
+      const month = String(dmyMatch[2]).padStart(2, '0');
+      let year = dmyMatch[3];
+      if (year.length === 2) year = '20' + year;
+      return `${year}-${month}-${day}`;
+    }
+
+    // 2. YYYY-MM-DD or YYYY/MM/DD
+    const ymdMatch = s.match(/\b(20\d{2})[-/.]([0]?\d|1[0-2])[-/.]([0-2]?\d|3[01])\b/);
+    if (ymdMatch) {
+      return `${ymdMatch[1]}-${String(ymdMatch[2]).padStart(2, '0')}-${String(ymdMatch[3]).padStart(2, '0')}`;
+    }
+
+    // 3. "yesterday"
+    if (/\byesterday\b/i.test(s)) {
+      const base = fallbackDateStr ? new Date(fallbackDateStr + 'T12:00:00') : new Date();
+      base.setDate(base.getDate() - 1);
+      const y = base.getFullYear();
+      const m = String(base.getMonth() + 1).padStart(2, '0');
+      const d = String(base.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // 4. "on 3rd", "on 03", "on date 3", "on day 3"
+    const dayMatch = s.match(/\b(?:on|date|day)\s+([0-2]?\d|3[01])(?:st|nd|rd|th)?\b/i) ||
+                     s.match(/\b([0-2]?\d|3[01])(?:st|nd|rd|th)\b/i);
+    if (dayMatch && fallbackDateStr) {
+      const dayNum = parseInt(dayMatch[1], 10);
+      if (dayNum >= 1 && dayNum <= 31) {
+        const parts = fallbackDateStr.split('-');
+        if (parts.length >= 2) {
+          return `${parts[0]}-${parts[1]}-${String(dayNum).padStart(2, '0')}`;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function parseGuestFromDateQuery(cleanQ) {
+    return cleanQ
+      .replace(/\b([0-2]?\d|3[01])[-/.]([0]?\d|1[0-2])[-/.](20\d{2}|\d{2})\b/g, '')
+      .replace(/\b(20\d{2})[-/.]([0]?\d|1[0-2])[-/.]([0-2]?\d|3[01])\b/g, '')
+      .replace(/\byesterday\b/gi, '')
+      .replace(/\b(?:on|date|day)\s+([0-2]?\d|3[01])(?:st|nd|rd|th)?\b/gi, '')
+      .replace(/\b([0-2]?\d|3[01])(?:st|nd|rd|th)\b/gi, '')
+      .replace(/\b(who|is|are|highest|top|buying|buyer|buy|in|out|cashin|cashout|payout|entries|entry|show|give|tell|me|what|did|has|the|of|for|guest|perticullar|particular|result|total|totals|summary|cage|drop|record|records|check|on|at|date|day)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   function computeOfflineAnswer(rawQuery) {
     const q = String(rawQuery || '').toLowerCase().trim();
     const cleanQ = q.replace(/[?!,.]/g, '');
@@ -6715,30 +6785,238 @@ document.addEventListener('DOMContentLoaded', async () => {
                        (typeof getBusinessDate === 'function' ? getBusinessDate() : '');
     const allPool = (typeof allEntries !== 'undefined' && Array.isArray(allEntries)) ? allEntries : [];
 
-    // Filter today's entries
-    const todayEntries = allPool.filter(e => {
+    // Check if user requested a specific date
+    const specificDate = extractDateFromQuery(rawQuery, activeDate);
+    const targetDate = specificDate || activeDate;
+    const isToday = (!specificDate || targetDate === activeDate);
+    const dateBadgeText = isToday ? `TODAY (${formatDateDMY(targetDate)})` : formatDateDMY(targetDate);
+
+    // Entries for target date
+    const targetDateEntries = allPool.filter(e => {
       if (!e) return false;
       const ed = e.businessDate || (e.datetime && typeof getBusinessDate === 'function' ? getBusinessDate(e.datetime) : '');
-      return ed === activeDate;
+      return ed === targetDate;
     });
 
-    // 1. INTENT: HIGHEST BUYING TODAY
-    // "Who is the highest buying today?", "who has highest amout and show the entries", "top buyer today", "highest cashin"
+    const guestCandidate = parseGuestFromDateQuery(cleanQ);
+
+    // 1. INTENT: SPECIFIC GUEST ON A SPECIFIC DATE (e.g. "Buying of Manthan on 03-11-2026", "Manthan on 4th")
+    if (specificDate && guestCandidate) {
+      const matchEntries = targetDateEntries.filter(e => {
+        if (!e) return false;
+        const g = (e.guestname || '').trim().toUpperCase();
+        return areGuestNamesSimilar(g, guestCandidate.toUpperCase()) || g.includes(guestCandidate.toUpperCase());
+      });
+
+      if (matchEntries.length > 0) {
+        const { bestName: resolvedName } = findBestFullGuestName(guestCandidate.toUpperCase(), matchEntries);
+        lastMentionedGuest = resolvedName;
+
+        let totalIn = 0;
+        let totalOut = 0;
+        matchEntries.forEach(e => {
+          const amt = Number(e.amount) || 0;
+          const t = (e.type || '').toUpperCase().trim();
+          if (isTotalInType(t)) totalIn += amt;
+          else if (isTotalOutType(t)) totalOut += amt;
+        });
+        const dateResult = totalOut - totalIn;
+
+        const sortedEntries = [...matchEntries].sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
+        const entriesListHtml = sortedEntries.map(e => {
+          const dt = String(e.datetime || '').trim();
+          const tPart = dt.includes('T') ? dt.split('T')[1] : (dt.includes(' ') ? dt.split(' ')[1] : '');
+          const eTime = tPart ? tPart.slice(0, 5) : '';
+          const s = getEntrySentence(e, resolvedName);
+          return `
+            <div style="display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.8rem;">
+              ${eTime ? `<span style="color: #38bdf8; font-family: monospace; font-weight: 800;">${escapeHTML(eTime)}</span>` : ''}
+              <span style="color: #ffffff; font-weight: 700; text-transform: uppercase;">${escapeHTML(s)}</span>
+            </div>
+          `;
+        }).join('');
+
+        return `
+          <div>
+            <div style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+              GUEST REPORT: ${escapeHTML(formatDateDMY(targetDate))}
+            </div>
+            
+            <div class="ai-card-highlight" style="border-left: 4px solid #38bdf8;">
+              <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
+                <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #60a5fa; text-decoration: underline;">
+                  ${escapeHTML(resolvedName)}
+                </a>
+              </div>
+              
+              <div class="ai-stat-row">
+                <span class="ai-stat-label">TOTAL BUY-IN ON ${escapeHTML(formatDateDMY(targetDate))}:</span>
+                <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(totalIn).toLocaleString('en-IN')}</span>
+              </div>
+              <div class="ai-stat-row">
+                <span class="ai-stat-label">TOTAL CASHOUT ON ${escapeHTML(formatDateDMY(targetDate))}:</span>
+                <span class="ai-stat-val" style="color: #f87171;">₹${Number(totalOut).toLocaleString('en-IN')}</span>
+              </div>
+              <div class="ai-stat-row">
+                <span class="ai-stat-label">RESULT ON ${escapeHTML(formatDateDMY(targetDate))}:</span>
+                <span class="ai-stat-val" style="color: ${dateResult >= 0 ? '#4ade80' : '#f87171'};">
+                  ₹${Math.abs(dateResult).toLocaleString('en-IN')} ${dateResult >= 0 ? '(Guest Ahead)' : '(Cage Ahead)'}
+                </span>
+              </div>
+              <div class="ai-stat-row">
+                <span class="ai-stat-label">TRANSACTIONS ON THIS DATE:</span>
+                <span class="ai-stat-val">${matchEntries.length}</span>
+              </div>
+            </div>
+
+            <div style="margin-top: 10px;">
+              <div style="font-size: 0.74rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">
+                TRANSACTIONS ON ${escapeHTML(formatDateDMY(targetDate))} FOR ${escapeHTML(resolvedName)}:
+              </div>
+              <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 6px 10px; max-height: 180px; overflow-y: auto;">
+                ${entriesListHtml}
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        const allGuestEntries = allPool.filter(e => {
+          if (!e) return false;
+          const g = (e.guestname || '').trim().toUpperCase();
+          return areGuestNamesSimilar(g, guestCandidate.toUpperCase()) || g.includes(guestCandidate.toUpperCase());
+        });
+
+        if (allGuestEntries.length > 0) {
+          const { bestName: resolvedName } = findBestFullGuestName(guestCandidate.toUpperCase(), allGuestEntries);
+          allGuestEntries.sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+          const latestVisit = allGuestEntries[0].businessDate ? formatDateDMY(allGuestEntries[0].businessDate) : 'N/A';
+          return `
+            <div>
+              <div style="font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+                NO ENTRIES ON ${escapeHTML(formatDateDMY(targetDate))}
+              </div>
+              <div class="ai-card-highlight" style="border-left: 4px solid #f87171;">
+                <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
+                  <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #60a5fa; text-decoration: underline;">
+                    ${escapeHTML(resolvedName)}
+                  </a>
+                </div>
+                <div style="font-size: 0.88rem; color: #cbd5e1; margin-bottom: 8px;">
+                  No transactions recorded for <strong>${escapeHTML(resolvedName)}</strong> on <strong>${escapeHTML(formatDateDMY(targetDate))}</strong>.
+                </div>
+                <div class="ai-stat-row">
+                  <span class="ai-stat-label">MOST RECENT VISIT:</span>
+                  <span class="ai-stat-val" style="color: #38bdf8;">${escapeHTML(latestVisit)}</span>
+                </div>
+                <div class="ai-stat-row">
+                  <span class="ai-stat-label">TOTAL SESSIONS IN HISTORY:</span>
+                  <span class="ai-stat-val">${new Set(allGuestEntries.map(e => e.businessDate).filter(Boolean)).size} Days</span>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          return `
+            <div style="color: #f87171; font-weight: 700;">
+              No records found for <strong>"${escapeHTML(guestCandidate.toUpperCase())}"</strong> on ${escapeHTML(formatDateDMY(targetDate))} or any other date.
+            </div>
+          `;
+        }
+      }
+    }
+
+    // 2. INTENT: PURE DATE SUMMARY (e.g. user asks "03-11-2026", "date 03-11-2026", "summary 03-11-2026", "total on 03-11-2026")
+    const isTopBuyerIntent = /highest.*\b(buy|buying|cashin|in|amou?nt?)\b/i.test(cleanQ) ||
+                             /top.*\b(buyer|buying|cashin)\b/i.test(cleanQ) ||
+                             /\bwho.*highest\b/i.test(cleanQ) ||
+                             /\bwho.*max\b/i.test(cleanQ);
+    const isTopCashoutIntent = /highest.*\b(cashout|out|payout|win|winner)\b/i.test(cleanQ) ||
+                               /top.*\b(cashout|payout|winner)\b/i.test(cleanQ);
+
+    if (specificDate && !guestCandidate && !isTopBuyerIntent && !isTopCashoutIntent) {
+      if (targetDateEntries.length === 0) {
+        return `
+          <div style="font-weight: 700; color: #f87171;">
+            No transactions found for date <strong>${escapeHTML(formatDateDMY(targetDate))}</strong>.
+          </div>
+        `;
+      }
+      let totalIn = 0;
+      let totalOut = 0;
+      targetDateEntries.forEach(e => {
+        const amt = Number(e.amount) || 0;
+        const t = (e.type || '').toUpperCase().trim();
+        if (isTotalInType(t)) totalIn += amt;
+        else if (isTotalOutType(t)) totalOut += amt;
+      });
+      const result = totalOut - totalIn;
+
+      const clusters = clusterGuestEntries(targetDateEntries);
+      const buyers = clusters.map(g => {
+        let inAmt = 0;
+        g.entries.forEach(e => {
+          if (isTotalInType((e.type || '').toUpperCase().trim())) inAmt += Number(e.amount) || 0;
+        });
+        return { name: g.name, totalIn: inAmt };
+      }).filter(g => g.totalIn > 0).sort((a,b) => b.totalIn - a.totalIn);
+
+      const topBuyerHtml = buyers.length > 0 ? `
+        <div class="ai-stat-row">
+          <span class="ai-stat-label">TOP BUYER ON THIS DATE:</span>
+          <span class="ai-stat-val" style="color: #38bdf8;">
+            <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(buyers[0].name)}" style="color: #38bdf8;">
+              ${escapeHTML(buyers[0].name)}
+            </a> (₹${Number(buyers[0].totalIn).toLocaleString('en-IN')})
+          </span>
+        </div>
+      ` : '';
+
+      return `
+        <div>
+          <div style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+            CAGE SUMMARY: ${escapeHTML(formatDateDMY(targetDate))}
+          </div>
+          <div class="ai-card-highlight">
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL IN (DROP):</span>
+              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(totalIn).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL OUT (PAYOUT):</span>
+              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">₹${Number(totalOut).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">NET RESULT (WIN/LOSS):</span>
+              <span class="ai-stat-val" style="color: ${result >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.15rem;">
+                ₹${Math.abs(result).toLocaleString('en-IN')} ${result < 0 ? '(Casino Profit)' : '(Players Ahead)'}
+              </span>
+            </div>
+            ${topBuyerHtml}
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL TRANSACTIONS:</span>
+              <span class="ai-stat-val">${targetDateEntries.length}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 3. INTENT: HIGHEST BUYING (TODAY OR ON SPECIFIC DATE)
     if (
       /highest.*\b(buy|buying|cashin|in|amou?nt?)\b/i.test(cleanQ) ||
       /top.*\b(buyer|buying|cashin)\b/i.test(cleanQ) ||
       /\bwho.*highest\b/i.test(cleanQ) ||
       /\bwho.*max\b/i.test(cleanQ)
     ) {
-      if (todayEntries.length === 0) {
+      if (targetDateEntries.length === 0) {
         return `
           <div style="font-weight: 700; color: #f87171;">
-            No entries found for today (${formatDateDMY(activeDate)}).
+            No entries found for ${escapeHTML(dateBadgeText)}.
           </div>
         `;
       }
 
-      const guestClusters = clusterGuestEntries(todayEntries);
+      const guestClusters = clusterGuestEntries(targetDateEntries);
       const rankedGuests = guestClusters.map(g => {
         let totalIn = 0;
         let totalOut = 0;
@@ -6760,7 +7038,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (rankedGuests.length === 0) {
         return `
           <div style="font-weight: 700; color: #f87171;">
-            No Buy-In (Cash In / Key In / Issue) entries recorded yet today (${formatDateDMY(activeDate)}).
+            No Buy-In (Cash In / Key In / Issue) entries recorded on ${escapeHTML(dateBadgeText)}.
           </div>
         `;
       }
@@ -6788,7 +7066,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (rankedGuests.length > 1) {
         runnersUpHtml = `
           <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.15);">
-            <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">OTHER TOP BUYERS TODAY:</div>
+            <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">OTHER TOP BUYERS ON ${escapeHTML(formatDateDMY(targetDate))}:</div>
             ${rankedGuests.slice(1, 4).map((g, idx) => `
               <div style="display: flex; justify-content: space-between; font-size: 0.78rem; padding: 2px 0;">
                 <span>${idx + 2}. <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(g.name)}" style="color: #38bdf8; font-weight: 700;">${escapeHTML(g.name)}</a></span>
@@ -6802,7 +7080,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div>
           <div style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
-            TODAY'S HIGHEST BUYER (${formatDateDMY(activeDate)})
+            HIGHEST BUYER: ${escapeHTML(dateBadgeText)}
           </div>
           
           <div class="ai-card-highlight" style="border-left: 4px solid #38bdf8;">
@@ -6813,15 +7091,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             
             <div class="ai-stat-row">
-              <span class="ai-stat-label">TOTAL BUY-IN TODAY:</span>
+              <span class="ai-stat-label">TOTAL BUY-IN ON THIS DATE:</span>
               <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
-              <span class="ai-stat-label">TOTAL CASHOUT TODAY:</span>
+              <span class="ai-stat-label">TOTAL CASHOUT ON THIS DATE:</span>
               <span class="ai-stat-val" style="color: #f87171;">₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
-              <span class="ai-stat-label">TODAY'S RESULT:</span>
+              <span class="ai-stat-label">RESULT ON THIS DATE:</span>
               <span class="ai-stat-val" style="color: ${top.result >= 0 ? '#4ade80' : '#f87171'};">
                 ₹${Math.abs(top.result).toLocaleString('en-IN')} ${top.result >= 0 ? '(Guest Ahead)' : '(Cage Ahead)'}
               </span>
@@ -6834,7 +7112,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           <div style="margin-top: 10px;">
             <div style="font-size: 0.74rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">
-              TODAY'S TRANSACTIONS FOR ${escapeHTML(top.name)}:
+              TRANSACTIONS ON ${escapeHTML(formatDateDMY(targetDate))} FOR ${escapeHTML(top.name)}:
             </div>
             <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 6px 10px; max-height: 180px; overflow-y: auto;">
               ${entriesListHtml}
@@ -6846,15 +7124,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }
 
-    // 2. INTENT: HIGHEST CASHOUT TODAY
+    // 4. INTENT: HIGHEST CASHOUT (TODAY OR ON SPECIFIC DATE)
     if (
       /highest.*\b(cashout|out|payout|win|winner)\b/i.test(cleanQ) ||
       /top.*\b(cashout|payout|winner)\b/i.test(cleanQ)
     ) {
-      if (todayEntries.length === 0) {
-        return `<div style="font-weight:700;color:#f87171;">No entries found for today (${formatDateDMY(activeDate)}).</div>`;
+      if (targetDateEntries.length === 0) {
+        return `<div style="font-weight:700;color:#f87171;">No entries found for ${escapeHTML(dateBadgeText)}.</div>`;
       }
-      const guestClusters = clusterGuestEntries(todayEntries);
+      const guestClusters = clusterGuestEntries(targetDateEntries);
       const rankedGuests = guestClusters.map(g => {
         let totalOut = 0;
         let totalIn = 0;
@@ -6868,7 +7146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }).filter(g => g.totalOut > 0);
 
       if (rankedGuests.length === 0) {
-        return `<div style="font-weight:700;color:#f87171;">No Cashout entries recorded yet today (${formatDateDMY(activeDate)}).</div>`;
+        return `<div style="font-weight:700;color:#f87171;">No Cashout entries recorded on ${escapeHTML(dateBadgeText)}.</div>`;
       }
 
       rankedGuests.sort((a, b) => b.totalOut - a.totalOut);
@@ -6892,7 +7170,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div>
           <div style="font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
-            TODAY'S HIGHEST CASHOUT (${formatDateDMY(activeDate)})
+            HIGHEST CASHOUT: ${escapeHTML(dateBadgeText)}
           </div>
           <div class="ai-card-highlight" style="border-left: 4px solid #f87171;">
             <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
@@ -6901,20 +7179,20 @@ document.addEventListener('DOMContentLoaded', async () => {
               </a>
             </div>
             <div class="ai-stat-row">
-              <span class="ai-stat-label">TOTAL CASHOUT TODAY:</span>
+              <span class="ai-stat-label">TOTAL CASHOUT ON THIS DATE:</span>
               <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
-              <span class="ai-stat-label">TOTAL BUY-IN TODAY:</span>
+              <span class="ai-stat-label">TOTAL BUY-IN ON THIS DATE:</span>
               <span class="ai-stat-val" style="color: #4ade80;">₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
-              <span class="ai-stat-label">TODAY'S RESULT:</span>
+              <span class="ai-stat-label">RESULT ON THIS DATE:</span>
               <span class="ai-stat-val" style="color: ${top.result >= 0 ? '#4ade80' : '#f87171'};">₹${Math.abs(top.result).toLocaleString('en-IN')}</span>
             </div>
           </div>
           <div style="margin-top: 10px;">
-            <div style="font-size: 0.74rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">TRANSACTIONS FOR ${escapeHTML(top.name)}:</div>
+            <div style="font-size: 0.74rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">TRANSACTIONS ON ${escapeHTML(formatDateDMY(targetDate))} FOR ${escapeHTML(top.name)}:</div>
             <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 6px 10px; max-height: 180px; overflow-y: auto;">
               ${entriesListHtml}
             </div>
@@ -6923,7 +7201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }
 
-    // 3. INTENT: WHEN DID GUEST LAST VISIT?
+    // 5. INTENT: WHEN DID GUEST LAST VISIT?
     if (
       /when.*(last.*visit|visit|came)/i.test(cleanQ) ||
       /last.*visit/i.test(cleanQ) ||
@@ -7004,12 +7282,15 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }
 
-    // 4. INTENT: OVERALL / LIFETIME BUYING OF PARTICULAR GUEST
+    // 6. INTENT: OVERALL / LIFETIME BUYING OF PARTICULAR GUEST
     if (
       /overall.*\b(buy|buying|in)\b/i.test(cleanQ) ||
       /total.*\b(buy|buying|in.*of)\b/i.test(cleanQ) ||
       /lifetime.*\b(buy|buying|in)\b/i.test(cleanQ) ||
-      /how much.*(bought|buy|spent|spend)/i.test(cleanQ)
+      /how much.*(bought|buy|spent|spend)/i.test(cleanQ) ||
+      /\bbuying\s+of\b/i.test(cleanQ) ||
+      /\bbuy-?in\s+of\b/i.test(cleanQ) ||
+      /\bhistory\s+of\b/i.test(cleanQ)
     ) {
       let targetName = cleanQ
         .replace(/\b(overall|total|lifetime|buying|buy|in|of|perticullar|particular|how|much|has|did|spend|spent|guest|the|tell|me|show|what|is|are|check|find|search|for|give)\b/gi, ' ')
@@ -7055,7 +7336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const daysMap = {};
       matchEntries.forEach(e => {
-        const d = e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '');
+        const d = e.businessDate || (e.datetime && typeof getBusinessDate === 'function' ? getBusinessDate(e.datetime) : '');
         if (!d) return;
         if (!daysMap[d]) daysMap[d] = { in: 0, out: 0, count: 0 };
         const amt = Number(e.amount) || 0;
@@ -7133,11 +7414,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }
 
-    // 5. INTENT: TODAY TOTALS / CAGE SUMMARY
-    if (/today.*(total|summary|collection|drop|result)|total.*(in|out|result).*today/i.test(cleanQ)) {
+    // 7. INTENT: TODAY TOTALS / CAGE SUMMARY (If no specific date)
+    if (/today.*(total|summary|collection|drop|result)|total.*(in|out|result).*today|drop/i.test(cleanQ)) {
       let totalIn = 0;
       let totalOut = 0;
-      todayEntries.forEach(e => {
+      targetDateEntries.forEach(e => {
         const amt = Number(e.amount) || 0;
         const t = (e.type || '').toUpperCase().trim();
         if (isTotalInType(t)) totalIn += amt;
@@ -7148,7 +7429,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return `
         <div>
           <div style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
-            TODAY'S CAGE SUMMARY (${formatDateDMY(activeDate)})
+            CAGE SUMMARY: ${escapeHTML(dateBadgeText)}
           </div>
           <div class="ai-card-highlight">
             <div class="ai-stat-row">
@@ -7167,14 +7448,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL TRANSACTIONS:</span>
-              <span class="ai-stat-val">${todayEntries.length}</span>
+              <span class="ai-stat-val">${targetDateEntries.length}</span>
             </div>
           </div>
         </div>
       `;
     }
 
-    // 6. INTENT: BARRED CHECK
+    // 8. INTENT: BARRED CHECK
     if (/barred/i.test(cleanQ)) {
       const targetName = cleanQ.replace(/is|barred|who|list|the|guest|check/gi, '').trim();
       const barredList = (typeof barredGuests !== 'undefined' && Array.isArray(barredGuests)) ? barredGuests : [];
@@ -7212,15 +7493,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
 
-    // 7. DEFAULT / GUEST PROFILE INTENT (If user enters just a name like "Manthan" or "Gosavi")
+    // 9. DEFAULT / GUEST PROFILE INTENT (If user enters just a name like "Manthan" or "Gosavi" or "Guest Manthan")
+    const cleanGuestCandidate = cleanQ.replace(/\b(guest|profile|check|search|find|show|details|info|about|for|who is|who)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+    const guestSearchTarget = (cleanGuestCandidate || cleanQ).toUpperCase();
+
     const matchEntries = allPool.filter(e => {
       if (!e) return false;
       const g = (e.guestname || '').trim().toUpperCase();
-      return areGuestNamesSimilar(g, cleanQ.toUpperCase()) || g.includes(cleanQ.toUpperCase());
+      return areGuestNamesSimilar(g, guestSearchTarget) || g.includes(guestSearchTarget);
     });
 
     if (matchEntries.length > 0) {
-      const { bestName: resolvedName } = findBestFullGuestName(cleanQ.toUpperCase(), matchEntries);
+      const { bestName: resolvedName } = findBestFullGuestName(guestSearchTarget, matchEntries);
       lastMentionedGuest = resolvedName;
 
       let lifetimeIn = 0;
@@ -7275,21 +7559,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `
       <div>
         <div style="font-weight: 700; color: #ffffff; margin-bottom: 6px;">
-          I didn't quite catch that. Here are some questions you can ask me completely offline:
+          I didn't quite catch that. Here are examples of questions you can ask me completely offline:
         </div>
         <ul style="margin: 0; padding-left: 18px; color: #94a3b8; font-size: 0.82rem; line-height: 1.6;">
           <li><strong style="color: #38bdf8;">"Who is the highest buying today?"</strong></li>
-          <li><strong style="color: #38bdf8;">"Who had the highest cashout today?"</strong></li>
+          <li><strong style="color: #38bdf8;">"Who is the highest buying on 03-11-2026?"</strong></li>
+          <li><strong style="color: #38bdf8;">"Buying of Manthan Gosavi on 03-11-2026"</strong></li>
           <li><strong style="color: #38bdf8;">"Overall buying of Manthan Gosavi"</strong></li>
           <li><strong style="color: #38bdf8;">"When did Manthan last visit?"</strong></li>
-          <li><strong style="color: #38bdf8;">"Today's total in and result"</strong></li>
+          <li><strong style="color: #38bdf8;">"Total in on 03-11-2026"</strong></li>
           <li><strong style="color: #38bdf8;">"Is [Name] barred?"</strong></li>
         </ul>
       </div>
     `;
   }
 
-  window.addEventListener('pageshow', applyAutoFit);
+    window.addEventListener('pageshow', applyAutoFit);
 });
 
 
