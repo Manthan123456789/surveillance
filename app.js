@@ -272,25 +272,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let currentBusinessDateStr = '';
 
-  // Helper: Get the business date string (YYYY-MM-DD) for a given datetime.
+  // Helper: Get the business date string (YYYY-MM-DD) for a given datetime respecting 06:00 AM cut-over
   function getBusinessDate(dateObj) {
     if (!dateObj && currentBusinessDateStr) {
       return currentBusinessDateStr;
     }
     
+    let d;
     if (dateObj) {
-      if (typeof dateObj === 'string' && dateObj.includes('T')) {
-        return dateObj.split('T')[0];
+      if (typeof dateObj === 'string') {
+        const s = dateObj.trim();
+        // If it's a pure YYYY-MM-DD string with no time, return as-is
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+          return s;
+        }
+        d = new Date(s);
+      } else if (dateObj instanceof Date) {
+        d = new Date(dateObj.getTime());
+      } else {
+        d = new Date(dateObj);
       }
-      const d = new Date(dateObj);
-      if (isNaN(d.getTime())) return '';
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
+    } else {
+      d = getServerTimeDate();
     }
 
-    const d = getServerTimeDate();
+    if (!d || isNaN(d.getTime())) return currentBusinessDateStr || '';
+
+    // 06:00 AM Cut-over Rule:
+    // Entries between 00:00:00 and 05:59:59 belong to previous calendar date's gaming session.
+    // At and after 06:00:00 AM, fresh entries start for the current day.
     if (d.getHours() < 6) {
       d.setDate(d.getDate() - 1);
     }
@@ -565,22 +575,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (guestwise) guestwise.style.setProperty('display', allEntriesViewMode === 'guestwise' ? 'block' : 'none', 'important');
   }
 
-  // ALL ENTRIES panel view update
+  // ALL ENTRIES panel view update (Strictly Current Business Date by default)
   async function updateAllEntriesView() {
-    if (!allEntriesDatePicker || !allEntriesSearch) return;
+    if (!allEntriesDatePicker) return;
 
-    const selectedDate = allEntriesDatePicker.value;
-    const query = allEntriesSearch.value.toLowerCase().trim();
-
-    let sourceEntries = allEntries;
-
-    // Filter by selected date
-    if (selectedDate) {
-      sourceEntries = sourceEntries.filter(entry => {
-        if (!entry.datetime) return false;
-        return getBusinessDate(entry.datetime) === selectedDate;
-      });
+    // Default to current gaming date if not explicitly picked
+    const activeDate = currentBusinessDateStr || getBusinessDate();
+    if (!allEntriesDatePicker.value) {
+      allEntriesDatePicker.value = activeDate;
     }
+    const selectedDate = allEntriesDatePicker.value || activeDate;
+    const query = allEntriesSearch ? allEntriesSearch.value.toLowerCase().trim() : '';
+
+    // Filter strictly by the chosen business date (current date by default)
+    let sourceEntries = (allEntries || []).filter(entry => {
+      const eDate = entry.businessDate || (entry.datetime ? getBusinessDate(entry.datetime) : '');
+      return eDate === selectedDate;
+    });
 
     // Apply Search filter
     if (query) {
@@ -631,7 +642,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (allEntriesListContainer) {
       allEntriesListContainer.innerHTML = `<ul class="sentence-list">` + 
-        sourceEntries.map(e => `<li class="sentence-item ${(e.type||'').toLowerCase().replace('/', '-')}">${getEntrySentence(e)}</li>`).join('') +
+        sourceEntries.map(e => `<li class="sentence-item ${(e.type||'').toLowerCase().replace('/', '-')}">${getEntrySentenceHTML(e)}</li>`).join('') +
         `</ul>`;
     }
 
@@ -668,7 +679,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <td><span style="color: #60a5fa; font-weight: bold;">${escapeHTML(entry.surv || '-')}</span></td>
             <td><span class="badge ${typeBadge.cls}">${typeBadge.label}</span></td>
             <td class="table-amount ${amtClass}">${amtFormatted}</td>
-            <td>${escapeHTML(entry.guestname)}</td>
+            <td>${entry.guestname ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(entry.guestname)}" data-date="${escapeHTML(entry.businessDate || (entry.datetime ? getBusinessDate(entry.datetime) : ''))}">${escapeHTML(String(entry.guestname).toUpperCase())}</a>` : '—'}</td>
             <td>${(() => {
               const showCard = ['ISSUE','DEPOSIT'].includes(type);
               return showCard
@@ -966,11 +977,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       const currentDayEntries = allEntries.filter(isEntryForToday);
-      renderEntries(allEntries, { limit: CURRENT_ENTRY_LIMIT, isArchive: false });
+      renderEntries(currentDayEntries, { limit: CURRENT_ENTRY_LIMIT, isArchive: false });
       calculateStatistics(currentDayEntries);
       populateDataLists(allEntries);
       if (typeof renderModalEntriesView === 'function') {
-        renderModalEntriesView(allEntries);
+        renderModalEntriesView(currentDayEntries);
       }
       if(allEntriesPanelCard && allEntriesPanelCard.style.display !== 'none') {
         updateAllEntriesView();
@@ -1773,28 +1784,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     let html = `
-      <div style="width: 100%; max-width: 100%; overflow: hidden;">
-        <table class="excel-grid-table" style="width: 100%; table-layout: fixed;">
+      <div class="excel-table-scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table class="excel-grid-table" style="width: 100%; min-width: max-content; table-layout: auto;">
           <thead>
             <tr class="excel-col-letter-row">
-              <th class="excel-row-num" style="width: 3%;"></th>
-              <th style="width: 8%;">A</th>
-              <th style="width: 18%;">B</th>
-              <th style="width: 10%;">C</th>
-              <th style="width: 25%;">D</th>
-              <th style="width: 12%;">E</th>
-              <th style="width: 12%;">F</th>
-              <th style="width: 12%;">G</th>
+              <th class="excel-row-num" style="width: 38px; min-width: 38px;"></th>
+              <th style="min-width: 90px;">A</th>
+              <th style="min-width: 160px;">B</th>
+              <th style="min-width: 110px;">C</th>
+              <th style="min-width: 220px;">D</th>
+              <th style="min-width: 150px;">E</th>
+              <th style="min-width: 120px;">F</th>
+              <th style="min-width: 150px;">G</th>
             </tr>
             <tr>
               <th class="excel-row-num">1</th>
-              <th class="excel-cell excel-header-cell">PHOTO</th>
-              <th class="excel-cell excel-header-cell">GUEST NAME</th>
-              <th class="excel-cell excel-header-cell">DATE</th>
-              <th class="excel-cell excel-header-cell">REASON / INCIDENT</th>
-              <th class="excel-cell excel-header-cell">INSTRUCTION</th>
-              <th class="excel-cell excel-header-cell">PROPERTY</th>
-              <th class="excel-cell excel-header-cell">OTHER INFO / DOC</th>
+              <th class="excel-cell excel-header-cell" style="min-width: 90px;">PHOTO</th>
+              <th class="excel-cell excel-header-cell" style="min-width: 160px;">GUEST NAME</th>
+              <th class="excel-cell excel-header-cell" style="min-width: 110px;">DATE</th>
+              <th class="excel-cell excel-header-cell" style="min-width: 220px;">REASON / INCIDENT</th>
+              <th class="excel-cell excel-header-cell" style="min-width: 150px;">INSTRUCTION</th>
+              <th class="excel-cell excel-header-cell" style="min-width: 120px;">PROPERTY</th>
+              <th class="excel-cell excel-header-cell" style="min-width: 150px;">OTHER INFO / DOC</th>
             </tr>
           </thead>
           <tbody>
@@ -2596,10 +2607,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Helper: Entry to Sentence Form
-  function getEntrySentence(entry) {
+  function getEntrySentence(entry, guestNameOverride) {
+    if (!entry) return '';
     const t = (entry.type || '').toUpperCase();
     const amt = formatKCurrency(Number(entry.amount) || 0);
-    const guest = escapeHTML(entry.guestname || 'Unknown');
+    const guest = escapeHTML(guestNameOverride || entry.guestname || 'Unknown');
     const card = entry.card ? escapeHTML(entry.card) : '';
     const info = entry.otherinfo ? ` (${escapeHTML(entry.otherinfo)})` : '';
 
@@ -2616,76 +2628,206 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${amt} ${t} BY ${guest}${info}`;
   }
 
-  // Open Major Guest Details Modal
-  function openMajorGuestModal(guest, netScore, inOut, entries) {
+  // Helper: Entry to Sentence Form with Clickable Guest Hyperlink (HTML)
+  function getEntrySentenceHTML(entry) {
+    if (!entry) return '';
+    const t = (entry.type || '').toUpperCase();
+    const amt = formatKCurrency(Number(entry.amount) || 0);
+    const rawGuest = (entry.guestname || 'UNKNOWN').trim().toUpperCase();
+    const eDate = entry.businessDate || (entry.datetime ? getBusinessDate(entry.datetime) : '');
+    const dateAttr = eDate ? ` data-date="${escapeHTML(eDate)}"` : '';
+    const guestLink = (rawGuest && rawGuest !== 'UNKNOWN' && rawGuest !== '—' && rawGuest !== '-')
+      ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(rawGuest)}"${dateAttr}>${escapeHTML(rawGuest)}</a>`
+      : escapeHTML(rawGuest);
+    const card = entry.card ? escapeHTML(entry.card) : '';
+    const info = entry.otherinfo ? ` (${escapeHTML(entry.otherinfo)})` : '';
+
+    if (t === 'CASHIN' || t === 'C/IN')   return `${amt} CASHIN BY ${guestLink}${info}`;
+    if (t === 'CASHOUT' || t === 'C/OUT')  return `${amt} CASHOUT BY ${guestLink}${info}`;
+    if (t === 'ISSUE')    return `${amt} ISSUE TO ${guestLink} FROM ${card} CARD${info}`;
+    if (t === 'DEPOSIT')  return `${amt} DEPOSIT BY ${guestLink} ON ${card} CARD${info}`;
+    if (t === 'KEYIN')    return `${amt} KEYIN BY ${guestLink}${info}`;
+    if (t === 'KEYOUT')   return `${amt} KEYOUT BY ${guestLink}${info}`;
+    
+    return `${amt} ${t} BY ${guestLink}${info}`;
+  }
+
+  // Open Guest Details Popup Modal (GUEST SUMMARY EXCEL TYPE + BELOW ENTRIES NO BOX)
+  function openGuestDetailsPopup(guest, netScore, inOut, entries, explicitDate) {
     const modal = document.getElementById('major-guest-details-modal');
     if (!modal) return;
-    const nameEl = document.getElementById('major-modal-guest-name');
     const statsEl = document.getElementById('major-modal-stats');
     const listEl = document.getElementById('major-modal-entries-list');
 
-    if (nameEl) nameEl.textContent = guest.toUpperCase();
+    if (!guest) return;
+    const cleanGuestName = String(guest).trim().toUpperCase().replace(/\s+/g, ' ');
 
-    const totalIn = inOut ? inOut.in : 0;
-    const totalOut = inOut ? inOut.out : 0;
-    let resClass = 'text-neutral';
-    let resStr = formatCurrency(Math.abs(netScore));
-    if (netScore < 0) {
-      resClass = 'text-red';
-      resStr = '-' + resStr;
-    } else if (netScore > 0) {
-      resClass = 'text-green';
-      resStr = '+' + resStr;
-    } else {
-      resStr = '₹0';
+    // Determine target business date based on context:
+    // 1. If user is on "All Entries" page, strictly use the selected gaming date (page number reference below: 1, 2, ... 31)
+    // 2. Otherwise (on Home page or anywhere else), strictly show only current day entries (currentBusinessDateStr || getBusinessDate())
+    let targetDate = '';
+
+    const allEntriesPanel = document.getElementById('all-entries-panel-card');
+    const isAllEntriesActive = allEntriesPanel && 
+      allEntriesPanel.style.display !== 'none' && 
+      !allEntriesPanel.classList.contains('hidden-panel');
+
+    if (isAllEntriesActive) {
+      if (allEntriesDatePicker && allEntriesDatePicker.value) {
+        targetDate = allEntriesDatePicker.value.trim();
+      } else if (typeof activeAllEntriesDay === 'number' && activeAllEntriesDay >= 1 && activeAllEntriesDay <= 31) {
+        const base = currentBusinessDateStr || getBusinessDate();
+        const parts = base.split('-');
+        if (parts.length === 3) {
+          parts[2] = String(activeAllEntriesDay).padStart(2, '0');
+          targetDate = parts.join('-');
+        }
+      }
+    } else if (explicitDate && /^\d{4}-\d{2}-\d{2}$/.test(String(explicitDate).trim())) {
+      targetDate = String(explicitDate).trim();
+    }
+
+    if (!targetDate) {
+      targetDate = currentBusinessDateStr || getBusinessDate();
+    }
+
+    // Always source from full pool of entries
+    const pool = (typeof allEntries !== 'undefined' && Array.isArray(allEntries)) 
+      ? allEntries 
+      : (Array.isArray(entries) ? entries : []);
+
+    // Filter day entries for targetDate
+    const dayEntries = pool.filter(e => {
+      if (!e) return false;
+      const eDate = e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '');
+      return eDate === targetDate;
+    });
+
+    // Multi-hop cluster all names of this guest on targetDate
+    const matchedNames = new Set([cleanGuestName]);
+    let added = true;
+    while (added) {
+      added = false;
+      for (const e of dayEntries) {
+        const g = (e.guestname || '').trim().toUpperCase().replace(/\s+/g, ' ');
+        if (!g || g === 'UNKNOWN' || g === '—' || g === '-') continue;
+        if (matchedNames.has(g)) continue;
+        for (const m of matchedNames) {
+          if (areGuestNamesSimilar(g, m)) {
+            matchedNames.add(g);
+            added = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Matching entries on this date
+    const currentGuestEntries = dayEntries.filter(e => {
+      const g = (e.guestname || '').trim().toUpperCase().replace(/\s+/g, ' ');
+      return matchedNames.has(g) || areGuestNamesSimilar(g, cleanGuestName);
+    });
+
+    // Pick best full name from active currentGuestEntries:
+    // First priority is MANTHAN GOSAVI (Tier 1)
+    // If MANTHAN GOSAVI entry is deleted, it picks MANTHAN G (Tier 2)
+    const { bestName: fullGuestName } = (typeof findBestFullGuestName === 'function')
+      ? findBestFullGuestName(cleanGuestName, currentGuestEntries)
+      : { bestName: cleanGuestName };
+
+    // Sort chronologically
+    currentGuestEntries.sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
+
+    // Calculate totals strictly for targetDate
+    let totalIn = 0;
+    let totalOut = 0;
+    currentGuestEntries.forEach(e => {
+      const t = (e.type || '').toUpperCase().trim();
+      const amt = Number(e.amount) || 0;
+      if (typeof isTotalInType === 'function' && isTotalInType(t)) totalIn += amt;
+      else if (typeof isTotalOutType === 'function' && isTotalOutType(t)) totalOut += amt;
+    });
+    const calculatedResult = totalOut - totalIn;
+
+    const inStr = Number(totalIn).toLocaleString('en-IN');
+    const outStr = Number(totalOut).toLocaleString('en-IN');
+    // Result displays absolute number formatted with Indian commas, matching Excel snapshot (media_1793886618191_256c680a.png)
+    const resStr = Math.abs(calculatedResult).toLocaleString('en-IN');
+
+    // Style matching Excel card in user's image:
+    // RESULT < 0 (loss for player/win for casino): #ffc7ce bg, #800000 text
+    // RESULT > 0 (win for player): #c6efce bg, #006100 text
+    // RESULT === 0: #ffffff bg, #000000 text
+    let resBg = '#ffffff';
+    let resColor = '#000000';
+    if (calculatedResult < 0) {
+      resBg = '#ffc7ce';
+      resColor = '#800000';
+    } else if (calculatedResult > 0) {
+      resBg = '#c6efce';
+      resColor = '#006100';
     }
 
     if (statsEl) {
       statsEl.innerHTML = `
-        <div style="flex: 1; text-align: center; background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; padding: 10px;">
-          <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL IN</div>
-          <div style="font-size: 1.15rem; font-weight: 800; color: #38bdf8; font-family: monospace;">${formatCurrency(totalIn)}</div>
-        </div>
-        <div style="flex: 1; text-align: center; background: rgba(251, 146, 60, 0.08); border: 1px solid rgba(251, 146, 60, 0.2); border-radius: 8px; padding: 10px;">
-          <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL OUT</div>
-          <div style="font-size: 1.15rem; font-weight: 800; color: #fb923c; font-family: monospace;">${formatCurrency(totalOut)}</div>
-        </div>
-        <div style="flex: 1; text-align: center; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 10px;">
-          <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">RESULT</div>
-          <div class="${resClass}" style="font-size: 1.15rem; font-weight: 800; font-family: monospace;">${resStr}</div>
+        <div style="width: 100%; border: 1.5px solid #000000; box-shadow: 0 4px 14px rgba(0,0,0,0.45); overflow: hidden; font-family: Calibri, 'Segoe UI', Arial, sans-serif; background: #ffffff;">
+          <div style="background: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 13.5px; padding: 7px 12px; border-bottom: 1.5px solid #000000; text-align: center; letter-spacing: 0.5px; text-transform: uppercase;">
+            DATE: ${escapeHTML(targetDate)}
+          </div>
+          <div style="background: #8ea9db; color: #800000; font-weight: 800; font-size: 14px; padding: 7px 12px; border-bottom: 1.5px solid #000000; text-align: center; letter-spacing: 0.5px;">
+            GUEST SUMMARY
+          </div>
+          <div style="background: #d9e1f2; color: #000000; font-weight: 700; font-size: 13.5px; padding: 6px 12px; border-bottom: 1px solid #000000; text-align: center;">
+            GUEST NAME: ${escapeHTML(fullGuestName || cleanGuestName)}
+          </div>
+          <div style="background: #ffffff; color: #000000; font-weight: 700; font-size: 13.5px; padding: 6px 12px; border-bottom: 1px solid #000000; text-align: center;">
+            TOTAL IN: ${inStr}
+          </div>
+          <div style="background: #ffffff; color: #000000; font-weight: 700; font-size: 13.5px; padding: 6px 12px; border-bottom: 1px solid #000000; text-align: center;">
+            TOTAL OUT: ${outStr}
+          </div>
+          <div style="background: ${resBg}; color: ${resColor}; font-weight: 800; font-size: 13.5px; padding: 6px 12px; text-align: center; border-bottom: 1px solid #000000;">
+            RESULT: ${resStr}
+          </div>
+          <div style="background: #ffff00; height: 16px; width: 100%;"></div>
         </div>
       `;
     }
 
     if (listEl) {
-      if (!entries || entries.length === 0) {
-        listEl.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 20px;">No entries today</div>';
+      if (currentGuestEntries.length === 0) {
+        listEl.innerHTML = `
+          <div style="color: #94a3b8; font-size: 12px; font-weight: 700; text-align: center; padding: 14px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+            NO ENTRIES FOR ${escapeHTML(targetDate)}
+          </div>
+        `;
       } else {
-        listEl.innerHTML = entries.map(e => {
-          const t = (e.type || '').toUpperCase();
-          const isCredit = ['CASHIN', 'C/IN', 'ISSUE', 'KEYIN'].includes(t);
-          const colorClass = isCredit ? 'text-green' : 'text-red';
-          const typeBorder = isCredit ? '#10b981' : '#ef4444';
-          const time = e.datetime ? e.datetime.replace('T', ' ').slice(11, 16) : '';
-          return `
-            <div style="background: rgba(255, 255, 255, 0.03); border-left: 3px solid ${typeBorder}; border-radius: 6px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.95rem;">
-              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                <span style="font-size: 0.8rem; color: #94a3b8; font-family: monospace;">${time}</span>
-                <span style="font-weight: 700; color: #fff;">${escapeHTML(t)}</span>
-                ${e.card ? `<span style="font-size: 0.8rem; background: rgba(255,255,255,0.08); padding: 2px 6px; border-radius: 4px; color: #cbd5e1;">${escapeHTML(e.card)}</span>` : ''}
-                ${e.otherinfo ? `<span style="font-size: 0.8rem; color: #94a3b8;">(${escapeHTML(e.otherinfo)})</span>` : ''}
-              </div>
-              <div class="${colorClass}" style="font-weight: 800; font-family: monospace; font-size: 1.05rem; white-space: nowrap; margin-left: 10px;">
-                ${formatCurrency(e.amount)}
-              </div>
-            </div>
-          `;
-        }).join('');
+        listEl.innerHTML = `
+          <div style="padding: 10px 0 4px 0; width: 100%;">
+            <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 5px; width: 100%; align-items: center;">
+              ${currentGuestEntries.map(e => {
+                const dt = String(e.datetime || '').trim();
+                const tPart = dt.includes('T') ? dt.split('T')[1] : (dt.includes(' ') ? dt.split(' ')[1] : '');
+                const eTime = tPart ? tPart.slice(0, 5) : '';
+                return `
+                  <li style="background: transparent !important; border: none !important; box-shadow: none !important; padding: 3px 0 !important; font-size: 12.5px !important; font-weight: 700 !important; color: #ffffff !important; width: 100% !important; letter-spacing: 0.3px !important; display: flex !important; justify-content: center !important; align-items: center !important; gap: 14px !important; text-transform: uppercase !important;">
+                    ${eTime ? `<span style="color: #38bdf8; font-family: monospace; font-size: 13px; font-weight: 800; letter-spacing: 0.5px;">${escapeHTML(eTime)}</span>` : ''}
+                    <span>${escapeHTML(String(getEntrySentence(e, fullGuestName) || '').toUpperCase())}</span>
+                  </li>
+                `;
+              }).join('')}
+            </ul>
+          </div>
+        `;
       }
     }
 
+    if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons();
     modal.style.display = 'flex';
   }
+
+  // Alias for backward-compatibility with Major Patron
+  const openMajorGuestModal = openGuestDetailsPopup;
 
   function closeMajorGuestModal() {
     const modal = document.getElementById('major-guest-details-modal');
@@ -2702,6 +2844,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (e.target === majorGuestModal) closeMajorGuestModal();
     });
   }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && majorGuestModal && majorGuestModal.style.display !== 'none') {
+      closeMajorGuestModal();
+    }
+  });
+
+  // Global click delegate for Guest Name Hyperlinks
+  document.addEventListener('click', (e) => {
+    const link = e.target.closest('.guest-hyperlink');
+    if (link) {
+      e.preventDefault();
+      e.stopPropagation();
+      const guestName = link.getAttribute('data-guest') || link.textContent.trim();
+      const explicitDate = link.getAttribute('data-date');
+      if (guestName && guestName !== '—' && guestName !== '-' && guestName.toUpperCase() !== 'UNKNOWN') {
+        openGuestDetailsPopup(guestName, null, null, null, explicitDate);
+      }
+    }
+  });
 
   // Track view mode for Major Patron: 'cards' or 'entries_by_guest'
   let majorViewMode = 'cards';
@@ -2802,17 +2963,118 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (matchFirstLast) return true;
     }
 
+    // 1 token of 2 chars vs 2 tokens: e.g. MG vs MANTHAN GOSAVI
+    if (tokA.length === 1 && tokA[0].length === 2 && tokB.length === 2) {
+      if ((tokA[0][0] === tokB[0][0] && tokA[0][1] === tokB[1][0]) ||
+          (tokA[0][0] === tokB[1][0] && tokA[0][1] === tokB[0][0])) {
+        return true;
+      }
+    }
+    if (tokB.length === 1 && tokB[0].length === 2 && tokA.length === 2) {
+      if ((tokB[0][0] === tokA[0][0] && tokB[0][1] === tokA[1][0]) ||
+          (tokB[0][0] === tokA[1][0] && tokB[0][1] === tokA[0][0])) {
+        return true;
+      }
+    }
+
     return false;
   }
 
   function getGuestNameScore(name) {
     const tokens = cleanGuestTokens(name);
     let score = 0;
+    const fullWords = tokens.filter(t => t.length > 1);
+    const initials = tokens.filter(t => t.length === 1);
+    
+    // Tier 1: Two or more full words (e.g. MANTHAN GOSAVI, GOSAVI MANTHAN) -> FIRST GUESTNAME
+    if (fullWords.length >= 2) {
+      score += 1000;
+    }
+    // Tier 2: First full word + initial (e.g. MANTHAN G) -> IF MANTHAN GOSAVI DELETED THAN TAKE MANTHAN G
+    else if (fullWords.length === 1 && initials.length >= 1 && tokens[0].length > 1) {
+      score += 500;
+    }
+    // Tier 3: Initial + full last word (e.g. M GOSAVI)
+    else if (fullWords.length === 1 && initials.length >= 1 && tokens[0].length === 1) {
+      score += 400;
+    }
+    // Tier 4: Single full word (e.g. MANTHAN, GOSAVI)
+    else if (fullWords.length === 1) {
+      score += 100;
+    }
+
     tokens.forEach(t => {
-      if (t.length > 1) score += t.length * 10;
-      else score += 1;
+      score += t.length * 10;
     });
     return score;
+  }
+
+  // Finds the most complete full name (e.g. MANTHAN GOSAVI) from active entries, falling back to MANTHAN G if deleted
+  function findBestFullGuestName(guestName, candidateEntries) {
+    if (!guestName) return { bestName: '', matchedNames: [] };
+    const searchName = String(guestName).trim().toUpperCase().replace(/\s+/g, ' ');
+
+    const candidateNames = new Set();
+    if (Array.isArray(candidateEntries)) {
+      candidateEntries.forEach(e => {
+        if (e && e.guestname) {
+          const gn = String(e.guestname).trim().toUpperCase().replace(/\s+/g, ' ');
+          if (gn && gn !== 'UNKNOWN' && gn !== '—' && gn !== '-') candidateNames.add(gn);
+        }
+      });
+    }
+
+    const matchedNames = new Set([searchName]);
+    let addedNew = true;
+    const allPool = new Set([searchName, ...candidateNames]);
+
+    while (addedNew) {
+      addedNew = false;
+      for (const name of allPool) {
+        if (matchedNames.has(name)) continue;
+        for (const matched of matchedNames) {
+          if (areGuestNamesSimilar(name, matched)) {
+            matchedNames.add(name);
+            addedNew = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Pick from active candidate entries first (so if MANTHAN GOSAVI is deleted, it picks MANTHAN G)
+    const activeNamesInCluster = Array.from(candidateNames).filter(n => {
+      return matchedNames.has(n) || areGuestNamesSimilar(n, searchName);
+    });
+
+    let bestName = searchName;
+    let bestScore = getGuestNameScore(bestName);
+
+    if (activeNamesInCluster.length > 0) {
+      bestName = activeNamesInCluster[0];
+      bestScore = getGuestNameScore(bestName);
+      for (const name of activeNamesInCluster) {
+        const score = getGuestNameScore(name);
+        if (score > bestScore) {
+          bestScore = score;
+          bestName = name;
+        } else if (score === bestScore && name.length > bestName.length) {
+          bestName = name;
+        }
+      }
+    } else {
+      for (const name of matchedNames) {
+        const score = getGuestNameScore(name);
+        if (score > bestScore) {
+          bestScore = score;
+          bestName = name;
+        } else if (score === bestScore && name.length > bestName.length) {
+          bestName = name;
+        }
+      }
+    }
+
+    return { bestName: bestName.replace(/\s+/g, ' '), matchedNames: Array.from(matchedNames) };
   }
 
   // Consolidates entries into unique guest clusters (same patron under one box)
@@ -3731,7 +3993,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const resVal = Number(g.result || 0);
       const resStr = Math.abs(resVal).toLocaleString('en-IN');
       const resType = resVal < 0 ? 'res-minus' : 'res-plus';
-      cardRows.push({ type: 'top', text: `GUEST NAME: ${upperName}` });
+      cardRows.push({ type: 'top', text: `GUEST NAME: ${upperName}`, guest: upperName });
       cardRows.push({ type: 'in', text: `TOTAL IN: ${inStr}` });
       cardRows.push({ type: 'out', text: `TOTAL OUT: ${outStr}` });
       cardRows.push({ type: resType, text: `RESULT: ${resStr}` });
@@ -3739,39 +4001,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     let html = `
-      <div style="width: 100%; max-width: 100%; overflow: hidden;">
-        <table class="excel-grid-table" style="width: 100%; table-layout: fixed;">
+      <div class="excel-table-scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table class="excel-grid-table" style="width: 100%; min-width: max-content; table-layout: auto;">
           <thead>
             <tr class="excel-col-letter-row">
-              <th class="excel-row-num" style="width: 3%;"></th>
-              <th style="width: 12%;">A</th>
-              <th style="width: 7%;">B</th>
-              <th style="width: 7%;">C</th>
-              <th style="width: 8.5%;">D</th>
-              <th style="width: 12%;">E</th>
-              <th style="width: 6.5%;">F</th>
-              <th style="width: 10%;">G</th>
-              <th style="width: 16%;">H</th>
-              <th style="width: 18%;">I</th>
+              <th class="excel-row-num" style="width: 38px; min-width: 38px;"></th>
+              <th style="min-width: 140px;">A</th>
+              <th style="min-width: 85px;">B</th>
+              <th style="min-width: 90px;">C</th>
+              <th style="min-width: 100px;">D</th>
+              <th style="min-width: 150px;">E</th>
+              <th style="min-width: 85px;">F</th>
+              <th style="min-width: 120px;">G</th>
+              <th style="min-width: 320px;">H</th>
+              <th style="min-width: 240px;">I</th>
             </tr>
           </thead>
           <tbody>
-    `;
-
-    // Row 1: Excel Header Row - ALL CAPITAL LETTERS
-    html += `
-      <tr>
-        <td class="excel-row-num">1</td>
-        <td class="excel-cell excel-header-cell">DATE & TIME</td>
-        <td class="excel-cell excel-header-cell">SURV ID</td>
-        <td class="excel-cell excel-header-cell">TYPE</td>
-        <td class="excel-cell excel-header-cell">AMOUNT</td>
-        <td class="excel-cell excel-header-cell">GUEST NAME</td>
-        <td class="excel-cell excel-header-cell">CARD</td>
-        <td class="excel-cell excel-header-cell">OTHER INFO</td>
-        <td class="excel-cell excel-header-cell">SENTENCE FORMAT</td>
-        <td class="excel-cell excel-header-cell">GUEST SUMMARY</td>
-      </tr>
+            <tr>
+              <td class="excel-row-num">1</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 140px;">DATE &amp; TIME</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 85px;">SURV ID</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 90px;">TYPE</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 100px;">AMOUNT</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 150px;">GUEST NAME</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 85px;">CARD</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 120px;">OTHER INFO</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 320px;">SENTENCE FORMAT</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 240px;">GUEST SUMMARY</td>
+            </tr>
     `;
 
     // Subsequent data rows
@@ -3784,14 +4042,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       let cardClass = 'excel-cell excel-guest-card-cell';
       let cardText = '';
       if (card) {
-        if (card.type === 'top') cardClass += ' excel-card-top';
-        else if (card.type === 'in') cardClass += ' excel-card-in';
-        else if (card.type === 'out') cardClass += ' excel-card-out';
-        else if (card.type === 'res-plus') cardClass += ' excel-card-result excel-card-result-plus';
-        else if (card.type === 'res-minus') cardClass += ' excel-card-result excel-card-result-minus';
-        else if (card.type === 'res-zero' || card.type === 'res') cardClass += ' excel-card-result excel-card-result-zero';
-        else if (card.type === 'blank') cardClass = 'excel-cell excel-card-blank';
-        cardText = escapeHTML(card.text);
+        if (card.type === 'top') {
+          cardClass += ' excel-card-top';
+          const gName = card.guest || (card.text.replace(/^GUEST NAME:\s*/i, ''));
+          cardText = `GUEST NAME: <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(gName)}" style="color:#000000 !important;text-decoration:underline !important;">${escapeHTML(gName)}</a>`;
+        }
+        else if (card.type === 'in') { cardClass += ' excel-card-in'; cardText = escapeHTML(card.text); }
+        else if (card.type === 'out') { cardClass += ' excel-card-out'; cardText = escapeHTML(card.text); }
+        else if (card.type === 'res-plus') { cardClass += ' excel-card-result excel-card-result-plus'; cardText = escapeHTML(card.text); }
+        else if (card.type === 'res-minus') { cardClass += ' excel-card-result excel-card-result-minus'; cardText = escapeHTML(card.text); }
+        else if (card.type === 'res-zero' || card.type === 'res') { cardClass += ' excel-card-result excel-card-result-zero'; cardText = escapeHTML(card.text); }
+        else if (card.type === 'blank') { cardClass = 'excel-cell excel-card-blank'; cardText = ''; }
       } else {
         cardClass = 'excel-cell excel-card-blank';
       }
@@ -3803,10 +4064,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.surv || '').toUpperCase()) : ''}</td>
           <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.type || '').toUpperCase()) : ''}</td>
           <td class="excel-cell" style="text-align:center;font-weight:700;">${e ? Number(e.amount || 0).toLocaleString('en-IN') : ''}</td>
-          <td class="excel-cell" style="font-weight:700;">${e ? escapeHTML(String(e.guestname || '').toUpperCase()) : ''}</td>
+          <td class="excel-cell" style="font-weight:700;">${e && e.guestname ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(e.guestname)}" data-date="${escapeHTML(e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : ''))}">${escapeHTML(String(e.guestname).toUpperCase())}</a>` : ''}</td>
           <td class="excel-cell">${e ? escapeHTML(String(e.card || '').toUpperCase()) : ''}</td>
           <td class="excel-cell">${e ? escapeHTML(String(e.otherinfo || '').toUpperCase()) : ''}</td>
-          <td class="excel-cell" style="color:#0369a1;font-weight:700;">${e ? escapeHTML(String(getEntrySentence(e)).toUpperCase()) : ''}</td>
+          <td class="excel-cell" style="color:#0369a1;font-weight:700;">${e ? getEntrySentenceHTML(e) : ''}</td>
           <td class="${cardClass}">${cardText}</td>
         </tr>
       `;
@@ -3839,17 +4100,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Sort guests alphabetically by name
     guestList.sort((a, b) => a.name.localeCompare(b.name));
 
-    // Top Header with Expand/Collapse All
+    // Top Header with Expand/Collapse All (Only Symbol, Small Compact Size)
     let html = `
       <div class="guestwise-top-bar">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <i data-lucide="users" style="width: 19px; height: 19px; color: #a78bfa;"></i>
-          <span style="font-weight: 800; font-size: 0.95rem; color: #ffffff; letter-spacing: 0.5px;">ENTRIES BY GUEST WISE</span>
-          <span style="font-size: 0.78rem; background: rgba(167, 139, 250, 0.2); color: #c4b5fd; padding: 2px 10px; border-radius: 12px; font-weight: 700;">
-            ${guestList.length} ${guestList.length === 1 ? 'Guest' : 'Guests'}
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="users" style="width: 17px; height: 17px; color: #a78bfa;" title="Guest Wise Entries"></i>
+          <span style="font-size: 0.72rem; background: rgba(167, 139, 250, 0.2); color: #c4b5fd; padding: 1px 8px; border-radius: 10px; font-weight: 700;" title="Total Unique Guests">
+            ${guestList.length}
           </span>
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px;">
           <button type="button" id="btn-guestwise-toggle-all" class="btn-guestwise-action">
             Expand All
           </button>
@@ -3857,7 +4117,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       </div>
     `;
 
-    // Render Guest Cards
+    // Render Guest Cards (Small Compact Size)
     guestList.forEach(g => {
       const isNegative = g.result < 0;
       const resultColorClass = isNegative ? 'text-red' : (g.result > 0 ? 'text-green' : 'text-neutral');
@@ -3881,15 +4141,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         const borderCol = isCredit ? '#10b981' : '#ef4444';
         const amtColor = isCredit ? '#10b981' : '#ef4444';
         const time = e.datetime ? e.datetime.replace('T', ' ').slice(11, 16) : '';
-        const sentence = getEntrySentence(e);
+        const sentence = getEntrySentenceHTML(e);
 
         return `
           <div class="guestwise-sentence-item" style="border-left-color: ${borderCol};">
-            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 1;">
-              ${time ? `<span style="font-size: 0.8rem; color: #94a3b8; font-family: monospace; background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">${escapeHTML(time)}</span>` : ''}
-              <span style="font-weight: 700; color: #f8fafc; font-size: 0.95rem; line-height: 1.4;">${sentence}</span>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; flex: 1;">
+              ${time ? `<span style="font-size: 0.75rem; color: #94a3b8; font-family: monospace; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 4px;">${escapeHTML(time)}</span>` : ''}
+              <span style="font-weight: 700; color: #f8fafc; font-size: 0.82rem; line-height: 1.35;">${sentence}</span>
             </div>
-            <div style="font-weight: 800; font-family: monospace; font-size: 1.05rem; color: ${amtColor}; white-space: nowrap; margin-left: 10px;">
+            <div style="font-weight: 800; font-family: monospace; font-size: 0.88rem; color: ${amtColor}; white-space: nowrap; margin-left: 8px;">
               ${formatCurrency(e.amount)}
             </div>
           </div>
@@ -3898,26 +4158,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       html += `
         <div class="guestwise-card${openClass}" data-guest="${escapeHTML(g.name)}">
-          <!-- Clickable Header: Displays GUEST NAME -->
+          <!-- Clickable Header: Displays GUEST NAME (Compact Small Size) -->
           <div class="guestwise-header" title="Click to view all entries and result for ${escapeHTML(g.name)}">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <div style="width: 36px; height: 36px; border-radius: 50%; background: rgba(167, 139, 250, 0.15); display: flex; align-items: center; justify-content: center; color: #a78bfa; flex-shrink: 0;">
-                <i data-lucide="user" style="width: 18px; height: 18px;"></i>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <div style="width: 26px; height: 26px; border-radius: 50%; background: rgba(167, 139, 250, 0.15); display: flex; align-items: center; justify-content: center; color: #a78bfa; flex-shrink: 0;">
+                <i data-lucide="user" style="width: 14px; height: 14px;"></i>
               </div>
               <div>
-                <div class="guestwise-name">${escapeHTML(g.name)}</div>
-                <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 600;">
+                <div class="guestwise-name"><a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(g.name)}">${escapeHTML(g.name)}</a></div>
+                <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 600;">
                   ${g.entries.length} ${g.entries.length === 1 ? 'TRANSACTION' : 'TRANSACTIONS'}
                 </div>
               </div>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
               <div style="text-align: right;">
-                <span style="font-size: 0.75rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">RESULT: </span>
-                <strong class="${resultColorClass}" style="font-family: monospace; font-size: 1.05rem; margin-left: 4px;">${formattedResult}</strong>
+                <span style="font-size: 0.68rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">RESULT: </span>
+                <strong class="${resultColorClass}" style="font-family: monospace; font-size: 0.92rem; margin-left: 2px;">${formattedResult}</strong>
               </div>
-              <i data-lucide="chevron-down" class="guestwise-chevron" style="width: 20px; height: 20px; color: #94a3b8;"></i>
+              <i data-lucide="chevron-down" class="guestwise-chevron" style="width: 15px; height: 15px; color: #94a3b8;"></i>
             </div>
           </div>
 
@@ -3926,26 +4186,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             <!-- Result and Totals Summary Strip -->
             <div class="guestwise-summary-strip">
               <div class="guestwise-stat-box" style="background: rgba(56, 189, 248, 0.08); border-color: rgba(56, 189, 248, 0.25);">
-                <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL IN</div>
-                <div style="font-size: 1.15rem; font-weight: 800; color: #38bdf8; font-family: monospace;">${formatCurrency(g.totalIn)}</div>
+                <div style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL IN</div>
+                <div style="font-size: 0.95rem; font-weight: 800; color: #38bdf8; font-family: monospace;">${formatCurrency(g.totalIn)}</div>
               </div>
               <div class="guestwise-stat-box" style="background: rgba(251, 146, 60, 0.08); border-color: rgba(251, 146, 60, 0.25);">
-                <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL OUT</div>
-                <div style="font-size: 1.15rem; font-weight: 800; color: #fb923c; font-family: monospace;">${formatCurrency(g.totalOut)}</div>
+                <div style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">TOTAL OUT</div>
+                <div style="font-size: 0.95rem; font-weight: 800; color: #fb923c; font-family: monospace;">${formatCurrency(g.totalOut)}</div>
               </div>
               <div class="guestwise-stat-box" style="background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.15);">
-                <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">RESULT</div>
-                <div class="${resultColorClass}" style="font-size: 1.15rem; font-weight: 800; font-family: monospace;">${formattedResult}</div>
+                <div style="font-size: 0.65rem; color: #94a3b8; font-weight: 700; text-transform: uppercase;">RESULT</div>
+                <div class="${resultColorClass}" style="font-size: 0.95rem; font-weight: 800; font-family: monospace;">${formattedResult}</div>
               </div>
             </div>
 
             <!-- Sentence Form List Header -->
-            <div style="font-size: 0.78rem; color: #a78bfa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px;">
+            <div style="font-size: 0.72rem; color: #a78bfa; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
               TRANSACTIONS IN SENTENCE FORM:
             </div>
 
             <!-- List of All Entries for this guest in Sentence Form -->
-            <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
               ${sentencesHtml}
             </div>
           </div>
@@ -4084,7 +4344,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td><span style="color: #fbbf24; font-weight: 700; font-size: 0.88rem;">${cashierStr}</span></td>
           <td><span class="badge ${typeBadge.cls}">${typeBadge.label}</span></td>
           <td class="table-amount ${amtColorClass}" style="font-weight: 800; font-size: 0.92rem;">${signPrefix}${amtFormatted}</td>
-          <td><strong style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">${guestNameStr}</strong></td>
+          <td>${entry.guestname ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(entry.guestname)}" style="font-size: 0.9rem;">${escapeHTML(String(guestNameStr).toUpperCase())}</a>` : `<strong style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">${guestNameStr}</strong>`}</td>
           <td>${cardStr}</td>
           <td title="${escapeHTML(entry.otherinfo || '')}">
             <div style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -4166,7 +4426,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td><span style="color: #fbbf24; font-weight: 700; font-size: 0.88rem;">${cashierStr}</span></td>
           <td><span class="badge ${typeBadge.cls}">${typeBadge.label}</span></td>
           <td class="table-amount ${amtColorClass}" style="font-weight: 800; font-size: 0.92rem;">${signPrefix}${amtFormatted}</td>
-          <td><strong style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">${guestNameStr}</strong></td>
+          <td>${entry.guestname ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(entry.guestname)}" style="font-size: 0.9rem;">${escapeHTML(String(guestNameStr).toUpperCase())}</a>` : `<strong style="color: #ffffff; font-weight: 700; font-size: 0.9rem;">${guestNameStr}</strong>`}</td>
           <td>${cardStr}</td>
           <td title="${escapeHTML(entry.otherinfo || '')}">
             <div style="max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -4484,7 +4744,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const typeBadge = getTypeBadge(entry.type);
       const amtClass = CREDIT_TYPES.includes((entry.type || '').toUpperCase()) ? 'text-green' : 'text-red';
       const amtFormatted = formatCurrency(Number(entry.amount) || 0);
-      const sentence = getEntrySentence(entry);
+      const sentence = getEntrySentenceHTML(entry);
       const typeKey = (entry.type || '').toLowerCase().replace('/', '-');
 
       const actionButtons = isArchive
@@ -4532,7 +4792,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td><strong>${displayDate}</strong></td>
           <td><span class="badge ${typeBadge.cls}">${typeBadge.label}</span></td>
           <td class="table-amount ${amtClass}">${amtFormatted}</td>
-          <td>${escapeHTML(entry.guestname)}</td>
+          <td>${entry.guestname ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(entry.guestname)}">${escapeHTML(String(entry.guestname).toUpperCase())}</a>` : '—'}</td>
           <td>${(() => {
             const rowType = (entry.type||'').toUpperCase();
             const showCard = ['ISSUE','DEPOSIT'].includes(rowType);
@@ -5227,17 +5487,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Mount for home page message box (Telegram layout)
   mountQuickEntry('officer-quick-input', 'btn-officer-quick-save', 'officer-quick-feedback');
 
-  // Real-time Search and Filter on Main Page (latest 20 active only)
+  // Real-time Search and Filter on Main Page (Current Date Only)
   if (tableSearchInput) {
- if (tableSearchInput) tableSearchInput.addEventListener('input', () => {
+    tableSearchInput.addEventListener('input', () => {
       const query = tableSearchInput.value.toLowerCase().trim();
+      const todayOnly = (allEntries || []).filter(isEntryForToday);
 
       if (!query) {
-        renderEntries(allEntries, { limit: CURRENT_ENTRY_LIMIT, isArchive: false });
+        renderEntries(todayOnly, { limit: CURRENT_ENTRY_LIMIT, isArchive: false });
         return;
       }
 
-      const filtered = allEntries.filter(entry => {
+      const filtered = todayOnly.filter(entry => {
         const nameMatch = entry.guestname && entry.guestname.toLowerCase().includes(query);
         const cashierMatch = entry.cashier && entry.cashier.toLowerCase().includes(query);
         const typeMatch = entry.type && entry.type.toLowerCase().includes(query);
@@ -5899,7 +6160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <td>${entry.datetime || '-'}</td>
             <td>${entry.type || '-'}</td>
             <td>${amt}</td>
-            <td>${entry.guestname || '-'}</td>
+            <td>${entry.guestname ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(entry.guestname)}">${escapeHTML(String(entry.guestname).toUpperCase())}</a>` : '-'}</td>
             <td>${entry.surv || '-'}</td>
           </tr>
         `;

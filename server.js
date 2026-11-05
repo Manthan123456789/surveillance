@@ -345,37 +345,37 @@ const customStylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
   <cellXfs count="9">
     <!-- 0: Normal -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-    <!-- 1: Header (Light Blue, Bold Maroon, Centered & Middle Align, All Borders) -->
+    <!-- 1: Header (Light Blue, Bold Maroon, Centered & Middle Align, All Borders, NO WRAP) -->
     <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="1"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
-    <!-- 2: Data Text / Regular Cells (Bold Black, Centered & Middle Align, All Borders) -->
+    <!-- 2: Data Text / Regular Cells (Bold Black, Centered & Middle Align, All Borders, NO WRAP) -->
     <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="1"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
-    <!-- 3: Data Amount (Bold Black, Centered & Middle Align, All Borders, Comma Format) -->
+    <!-- 3: Data Amount (Bold Black, Centered & Middle Align, All Borders, Comma Format, NO WRAP) -->
     <xf numFmtId="164" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 4: Yellow Separator Cell in Guest Summary (Solid Yellow Fill, All Borders) -->
     <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 5: Empty Cell with Borders and Centered Alignment -->
     <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 6: Red Style for Negative RESULT (Soft Red Fill, Bold Red Text, Centered & Middle Align, All Borders) -->
     <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 7: Fluorescent Green Style for Positive RESULT (Fluorescent Green Fill, Bold Green Text, Centered & Middle Align, All Borders) -->
     <xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
-    <!-- 8: Guest Name Box (Soft Ice Blue Fill, Bold Black Text, Centered & Middle Align, All Borders) -->
+    <!-- 8: Guest Name Box (Soft Ice Blue Fill, Bold Black Text, Centered & Middle Align, All Borders, NO WRAP) -->
     <xf numFmtId="0" fontId="1" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="1"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
   </cellXfs>
 </styleSheet>`;
@@ -458,6 +458,47 @@ async function applyExcelStyles(buffer) {
 
         return `<row r="${r}"${rowTagRest}${newRowContent}${closeTag}`;
       });
+
+      // Auto-fit column widths (<cols>): guarantee wide columns so words never wrap or truncate
+      const defaultColWidths = {
+        'A': 22, // DATE & TIME
+        'B': 12, // SURV ID
+        'C': 12, // TYPE
+        'D': 16, // AMOUNT
+        'E': 26, // GUEST NAME
+        'F': 14, // CARD
+        'G': 20, // OTHER INFO
+        'H': 48, // SENTENCE FORMAT
+        'I': 36  // GUEST SUMMARY
+      };
+
+      const colLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+      const maxColLen = {};
+      const scanCellRegex = /<c r="([A-I])\d+"[^>]*>(?:<v>([\s\S]*?)<\/v>)?<\/c>/g;
+      let sm;
+      while ((sm = scanCellRegex.exec(xml)) !== null) {
+        const col = sm[1];
+        let rawVal = sm[2] || '';
+        rawVal = rawVal.replace('__POS__', '').replace('__NEG__', '').replace('__YELLOW__', '');
+        if (!maxColLen[col] || rawVal.length > maxColLen[col]) {
+          maxColLen[col] = rawVal.length;
+        }
+      }
+
+      let colsXml = '<cols>';
+      colLetters.forEach((col, idx) => {
+        const colIdx = idx + 1;
+        const computed = (maxColLen[col] || 0) + 4;
+        const finalW = Math.max(computed, defaultColWidths[col]);
+        colsXml += `<col min="${colIdx}" max="${colIdx}" width="${finalW}" customWidth="1"/>`;
+      });
+      colsXml += '</cols>';
+
+      if (xml.includes('<cols>') || xml.includes('<cols ')) {
+        xml = xml.replace(/<cols[\s\S]*?<\/cols>/, colsXml);
+      } else {
+        xml = xml.replace('<sheetData', colsXml + '<sheetData');
+      }
 
       loadedZip.file(sheetFile, xml);
     }
@@ -632,15 +673,15 @@ function buildWorksheetForDay(entries) {
 
   // Dynamic Auto-fit for all column widths based on maximum content length
   const defaultMinWidths = [
-    20, // A: DATE & TIME
+    22, // A: DATE & TIME
     12, // B: SURV ID
     12, // C: TYPE
     16, // D: AMOUNT
-    24, // E: GUEST NAME
+    26, // E: GUEST NAME
     14, // F: CARD
-    18, // G: OTHER INFO
-    42, // H: SENTENCE FORMAT
-    34  // I: GUEST SUMMARY
+    20, // G: OTHER INFO
+    48, // H: SENTENCE FORMAT
+    36  // I: GUEST SUMMARY
   ];
 
   const colWidths = [];
@@ -726,24 +767,21 @@ async function saveEntriesToArchive(entries) {
       workbook = xlsx.utils.book_new();
     }
 
-    // Ensure all 31 sheets exist in order (1 to 31)
+    // Ensure all 31 sheets exist in order (1 to 31) with guaranteed headers and auto-fit column widths
     for (let d = 1; d <= 31; d++) {
       const sheetName = String(d);
-      if (days[sheetName] && days[sheetName].length > 0) {
-        let existing = [];
-        if (workbook.Sheets[sheetName]) {
-          try {
-            existing = readSheetEntries(workbook.Sheets[sheetName]);
-          } catch (e) {}
-        }
-        const existingIds = new Set(existing.map(e => e.id));
-        const newOnes = days[sheetName].filter(e => !existingIds.has(e.id));
-        const allDayEntries = [...existing, ...newOnes];
-
-        workbook.Sheets[sheetName] = buildWorksheetForDay(allDayEntries);
-      } else if (!workbook.Sheets[sheetName]) {
-        workbook.Sheets[sheetName] = buildWorksheetForDay([]);
+      let existing = [];
+      if (workbook.Sheets[sheetName]) {
+        try {
+          existing = readSheetEntries(workbook.Sheets[sheetName]);
+        } catch (e) {}
       }
+      const existingIds = new Set(existing.map(e => e.id));
+      const dayEntries = days[sheetName] || [];
+      const newOnes = dayEntries.filter(e => !existingIds.has(e.id));
+      const allDayEntries = [...existing, ...newOnes];
+
+      workbook.Sheets[sheetName] = buildWorksheetForDay(allDayEntries);
 
       if (!workbook.SheetNames.includes(sheetName)) {
         workbook.SheetNames.push(sheetName);
@@ -1018,7 +1056,7 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   // CORS Headers for API requests
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -1130,7 +1168,7 @@ const server = http.createServer((req, res) => {
 
     const users = loadUsers();
     const userList = Object.keys(users).map(user => ({
-      username: user,
+      username: user.toUpperCase(),
       password: users[user].password,
       role: users[user].role || 'officer'
     }));
@@ -1271,8 +1309,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/entries' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
+        await checkAndPerformDailyReset('api-post-entry');
         const data = JSON.parse(body);
         const { datetime, cd, cashier, type, amount, guestname, card, otherinfo, surv } = data;
 
@@ -1345,8 +1384,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/barred' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
+        await checkAndPerformDailyReset('api-post-entry');
         const data = JSON.parse(body);
         const { guestname, reason, date, inst, property, otherinfo, photo } = data;
         if (!guestname) {
@@ -1371,8 +1411,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/barred/bulk' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
+        await checkAndPerformDailyReset('api-post-entry');
         const data = JSON.parse(body);
         if (!Array.isArray(data.guests)) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1466,8 +1507,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/staff/bulk' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
+        await checkAndPerformDailyReset('api-post-entry');
         const data = JSON.parse(body);
         const list = Array.isArray(data.staff) ? data.staff : (Array.isArray(data.entries) ? data.entries : null);
         if (!list) {
@@ -1694,6 +1736,7 @@ const server = http.createServer((req, res) => {
   // GET /api/entries
   if (pathname === '/api/entries' && req.method === 'GET') {
     try {
+      await checkAndPerformDailyReset('api-entries');
       if (!fs.existsSync(ENTRIES_DIR)) {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ entries: [], currentBusinessDate }));
@@ -1740,8 +1783,9 @@ const server = http.createServer((req, res) => {
 
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
+        await checkAndPerformDailyReset('api-post-entry');
         const data = JSON.parse(body);
         // Find the matching file by scanning for the ID
         const files = fs.readdirSync(ENTRIES_DIR);
@@ -1843,8 +1887,9 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/entries/move' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => { body += chunk; });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
+        await checkAndPerformDailyReset('api-post-entry');
         const data = JSON.parse(body);
         const idsToCopy = data.ids || [];
         let targetDateStr = data.targetDate;
