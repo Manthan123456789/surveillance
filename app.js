@@ -5376,6 +5376,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       const lines = raw.split(/[\r\n;]+/).map(l => l.trim()).filter(l => l.length > 0);
       if (lines.length === 0) return;
 
+      // Check if user typed an offline question for the AI Assistant!
+      const rawTrimmed = raw.trim();
+      const isQuestion = rawTrimmed.startsWith('?') || 
+        /\b(who|when|how much|what|which|highest|top|overall|lifetime|last visit|barred)\b/i.test(rawTrimmed);
+      if (isQuestion && !parseQuickSentence(rawTrimmed)) {
+        if (typeof openAIAssistantModal === 'function') {
+          openAIAssistantModal(rawTrimmed);
+        }
+        qInput.value = '';
+        qInput.style.height = '';
+        setFb('');
+        return;
+      }
+
       const parsedEntries = [];
       const failedLines = [];
 
@@ -6566,6 +6580,705 @@ document.addEventListener('DOMContentLoaded', () => {
     window.visualViewport.addEventListener('resize', triggerAutoFit, { passive: true });
     window.visualViewport.addEventListener('scroll', triggerAutoFit, { passive: true });
   }
+  // ==========================================================================
+  // OFFLINE SURVEILLANCE AI ASSISTANT (100% OFFLINE)
+  // Answers any question regarding surveillance entries, buying, visits, cage totals
+  // ==========================================================================
+  const btnFloatingAI = document.getElementById('btn-floating-ai-assistant');
+  const aiAssistantModal = document.getElementById('ai-assistant-modal');
+  const btnCloseAIModal = document.getElementById('btn-close-ai-modal');
+  const aiChatMessages = document.getElementById('ai-chat-messages');
+  const aiChatForm = document.getElementById('ai-chat-form');
+  const aiChatInput = document.getElementById('ai-chat-input');
+  let lastMentionedGuest = '';
+
+  function openAIAssistantModal(initialQuery) {
+    if (!aiAssistantModal) return;
+    aiAssistantModal.style.display = 'flex';
+    if (aiChatMessages && aiChatMessages.children.length === 0) {
+      renderAIWelcomeMessage();
+    }
+    if (initialQuery) {
+      handleAIQuery(initialQuery);
+    } else {
+      setTimeout(() => {
+        if (aiChatInput) aiChatInput.focus();
+      }, 150);
+    }
+  }
+  window.openAIAssistantModal = openAIAssistantModal;
+
+  function closeAIAssistantModal() {
+    if (aiAssistantModal) aiAssistantModal.style.display = 'none';
+  }
+
+  if (btnFloatingAI) {
+    btnFloatingAI.addEventListener('click', () => {
+      openAIAssistantModal();
+    });
+  }
+
+  if (btnCloseAIModal) {
+    btnCloseAIModal.addEventListener('click', closeAIAssistantModal);
+  }
+
+  if (aiAssistantModal) {
+    aiAssistantModal.addEventListener('click', (e) => {
+      if (e.target === aiAssistantModal) closeAIAssistantModal();
+    });
+  }
+
+  // Quick Action Chips in Assistant
+  document.querySelectorAll('.ai-quick-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const q = chip.getAttribute('data-query');
+      if (q) handleAIQuery(q);
+    });
+  });
+
+  if (aiChatForm) {
+    aiChatForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = aiChatInput ? aiChatInput.value.trim() : '';
+      if (!val) return;
+      if (aiChatInput) aiChatInput.value = '';
+      handleAIQuery(val);
+    });
+  }
+
+  function renderAIWelcomeMessage() {
+    if (!aiChatMessages) return;
+    aiChatMessages.innerHTML = `
+      <div class="ai-msg-bubble-bot">
+        <div style="font-weight: 800; color: #38bdf8; font-size: 0.95rem;">
+          👋 Welcome to the Offline Surveillance AI Assistant!
+        </div>
+        <div style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5;">
+          I analyze all local transactions, guest profiles, cage totals, and visits <strong>100% offline</strong> without needing internet.
+        </div>
+        <div style="margin-top: 4px; font-size: 0.78rem; color: #94a3b8; font-weight: 700;">
+          EXAMPLES OF WHAT YOU CAN ASK:
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem;">
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Who is the highest buying today?</a>
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Who had the highest cashout today?</a>
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Overall buying of Manthan Gosavi</a>
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• When did Manthan last visit?</a>
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Today's total in and result</a>
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Is Manthan barred?</a>
+        </div>
+      </div>
+    `;
+
+    aiChatMessages.querySelectorAll('.ai-sample-q').forEach(el => {
+      el.addEventListener('click', () => {
+        const text = el.textContent.replace('• ', '').trim();
+        handleAIQuery(text);
+      });
+    });
+  }
+
+  function handleAIQuery(query) {
+    if (!aiChatMessages) return;
+    const cleanUserQ = query.trim();
+    if (!cleanUserQ) return;
+
+    // 1. User Message
+    const userEl = document.createElement('div');
+    userEl.className = 'ai-msg-bubble-user';
+    userEl.textContent = cleanUserQ;
+    aiChatMessages.appendChild(userEl);
+    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+
+    // 2. Compute Offline Answer
+    const botEl = document.createElement('div');
+    botEl.className = 'ai-msg-bubble-bot';
+    botEl.innerHTML = computeOfflineAnswer(cleanUserQ);
+    aiChatMessages.appendChild(botEl);
+    aiChatMessages.scrollTop = aiChatMessages.scrollHeight;
+
+    if (window.lucide) {
+      try { lucide.createIcons(); } catch (e) {}
+    }
+  }
+
+  function computeOfflineAnswer(rawQuery) {
+    const q = String(rawQuery || '').toLowerCase().trim();
+    const cleanQ = q.replace(/[?!,.]/g, '');
+    const activeDate = currentBusinessDateStr || getBusinessDate();
+    const allPool = Array.isArray(allEntries) ? allEntries : [];
+
+    // Filter today's entries
+    const todayEntries = allPool.filter(e => {
+      if (!e) return false;
+      const ed = e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '');
+      return ed === activeDate;
+    });
+
+    // 1. INTENT: HIGHEST BUYING TODAY
+    // "Who is the highest buying today?", "who has highest amout and show the entries", "top buyer today", "highest cashin"
+    if (
+      /highest.*\b(buy|buying|cashin|in|amou?nt?)\b/i.test(cleanQ) ||
+      /top.*\b(buyer|buying|cashin)\b/i.test(cleanQ) ||
+      /\bwho.*highest\b/i.test(cleanQ) ||
+      /\bwho.*max\b/i.test(cleanQ)
+    ) {
+      if (todayEntries.length === 0) {
+        return `
+          <div style="font-weight: 700; color: #f87171;">
+            No entries found for today (${formatDateDMY(activeDate)}).
+          </div>
+        `;
+      }
+
+      const guestClusters = clusterGuestEntries(todayEntries);
+      const rankedGuests = guestClusters.map(g => {
+        let totalIn = 0;
+        let totalOut = 0;
+        g.entries.forEach(e => {
+          const amt = Number(e.amount) || 0;
+          const t = (e.type || '').toUpperCase().trim();
+          if (isTotalInType(t)) totalIn += amt;
+          else if (isTotalOutType(t)) totalOut += amt;
+        });
+        return {
+          name: g.name,
+          totalIn,
+          totalOut,
+          result: totalOut - totalIn,
+          entries: g.entries
+        };
+      }).filter(g => g.totalIn > 0);
+
+      if (rankedGuests.length === 0) {
+        return `
+          <div style="font-weight: 700; color: #f87171;">
+            No Buy-In (Cash In / Key In / Issue) entries recorded yet today (${formatDateDMY(activeDate)}).
+          </div>
+        `;
+      }
+
+      rankedGuests.sort((a, b) => b.totalIn - a.totalIn);
+      const top = rankedGuests[0];
+      lastMentionedGuest = top.name;
+
+      const sortedEntries = [...top.entries].sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
+
+      let entriesListHtml = sortedEntries.map(e => {
+        const dt = String(e.datetime || '').trim();
+        const tPart = dt.includes('T') ? dt.split('T')[1] : (dt.includes(' ') ? dt.split(' ')[1] : '');
+        const eTime = tPart ? tPart.slice(0, 5) : '';
+        const s = getEntrySentence(e, top.name);
+        return `
+          <div style="display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.8rem;">
+            ${eTime ? `<span style="color: #38bdf8; font-family: monospace; font-weight: 800;">${escapeHTML(eTime)}</span>` : ''}
+            <span style="color: #ffffff; font-weight: 700; text-transform: uppercase;">${escapeHTML(s)}</span>
+          </div>
+        `;
+      }).join('');
+
+      let runnersUpHtml = '';
+      if (rankedGuests.length > 1) {
+        runnersUpHtml = `
+          <div style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.15);">
+            <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">OTHER TOP BUYERS TODAY:</div>
+            ${rankedGuests.slice(1, 4).map((g, idx) => `
+              <div style="display: flex; justify-content: space-between; font-size: 0.78rem; padding: 2px 0;">
+                <span>${idx + 2}. <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(g.name)}" style="color: #38bdf8; font-weight: 700;">${escapeHTML(g.name)}</a></span>
+                <span style="color: #4ade80; font-weight: 800;">₹${Number(g.totalIn).toLocaleString('en-IN')}</span>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      return `
+        <div>
+          <div style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+            TODAY'S HIGHEST BUYER (${formatDateDMY(activeDate)})
+          </div>
+          
+          <div class="ai-card-highlight" style="border-left: 4px solid #38bdf8;">
+            <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
+              <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(top.name)}" style="color: #60a5fa; text-decoration: underline;">
+                ${escapeHTML(top.name)}
+              </a>
+            </div>
+            
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL BUY-IN TODAY:</span>
+              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL CASHOUT TODAY:</span>
+              <span class="ai-stat-val" style="color: #f87171;">₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TODAY'S RESULT:</span>
+              <span class="ai-stat-val" style="color: ${top.result >= 0 ? '#4ade80' : '#f87171'};">
+                ₹${Math.abs(top.result).toLocaleString('en-IN')} ${top.result >= 0 ? '(Guest Ahead)' : '(Cage Ahead)'}
+              </span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL TRANSACTIONS:</span>
+              <span class="ai-stat-val">${top.entries.length}</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div style="font-size: 0.74rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">
+              TODAY'S TRANSACTIONS FOR ${escapeHTML(top.name)}:
+            </div>
+            <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 6px 10px; max-height: 180px; overflow-y: auto;">
+              ${entriesListHtml}
+            </div>
+          </div>
+
+          ${runnersUpHtml}
+        </div>
+      `;
+    }
+
+    // 2. INTENT: HIGHEST CASHOUT TODAY
+    if (
+      /highest.*\b(cashout|out|payout|win|winner)\b/i.test(cleanQ) ||
+      /top.*\b(cashout|payout|winner)\b/i.test(cleanQ)
+    ) {
+      if (todayEntries.length === 0) {
+        return `<div style="font-weight:700;color:#f87171;">No entries found for today (${formatDateDMY(activeDate)}).</div>`;
+      }
+      const guestClusters = clusterGuestEntries(todayEntries);
+      const rankedGuests = guestClusters.map(g => {
+        let totalOut = 0;
+        let totalIn = 0;
+        g.entries.forEach(e => {
+          const amt = Number(e.amount) || 0;
+          const t = (e.type || '').toUpperCase().trim();
+          if (isTotalOutType(t)) totalOut += amt;
+          else if (isTotalInType(t)) totalIn += amt;
+        });
+        return { name: g.name, totalIn, totalOut, result: totalOut - totalIn, entries: g.entries };
+      }).filter(g => g.totalOut > 0);
+
+      if (rankedGuests.length === 0) {
+        return `<div style="font-weight:700;color:#f87171;">No Cashout entries recorded yet today (${formatDateDMY(activeDate)}).</div>`;
+      }
+
+      rankedGuests.sort((a, b) => b.totalOut - a.totalOut);
+      const top = rankedGuests[0];
+      lastMentionedGuest = top.name;
+
+      const sortedEntries = [...top.entries].sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
+      let entriesListHtml = sortedEntries.map(e => {
+        const dt = String(e.datetime || '').trim();
+        const tPart = dt.includes('T') ? dt.split('T')[1] : (dt.includes(' ') ? dt.split(' ')[1] : '');
+        const eTime = tPart ? tPart.slice(0, 5) : '';
+        const s = getEntrySentence(e, top.name);
+        return `
+          <div style="display: flex; gap: 10px; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.8rem;">
+            ${eTime ? `<span style="color: #38bdf8; font-family: monospace; font-weight: 800;">${escapeHTML(eTime)}</span>` : ''}
+            <span style="color: #ffffff; font-weight: 700; text-transform: uppercase;">${escapeHTML(s)}</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div>
+          <div style="font-size: 0.75rem; background: rgba(239, 68, 68, 0.2); color: #f87171; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+            TODAY'S HIGHEST CASHOUT (${formatDateDMY(activeDate)})
+          </div>
+          <div class="ai-card-highlight" style="border-left: 4px solid #f87171;">
+            <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
+              <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(top.name)}" style="color: #60a5fa; text-decoration: underline;">
+                ${escapeHTML(top.name)}
+              </a>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL CASHOUT TODAY:</span>
+              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL BUY-IN TODAY:</span>
+              <span class="ai-stat-val" style="color: #4ade80;">₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TODAY'S RESULT:</span>
+              <span class="ai-stat-val" style="color: ${top.result >= 0 ? '#4ade80' : '#f87171'};">₹${Math.abs(top.result).toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+          <div style="margin-top: 10px;">
+            <div style="font-size: 0.74rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px;">TRANSACTIONS FOR ${escapeHTML(top.name)}:</div>
+            <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 6px 10px; max-height: 180px; overflow-y: auto;">
+              ${entriesListHtml}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 3. INTENT: WHEN DID GUEST LAST VISIT?
+    if (
+      /when.*(last.*visit|visit|came)/i.test(cleanQ) ||
+      /last.*visit/i.test(cleanQ) ||
+      /last.*seen/i.test(cleanQ)
+    ) {
+      let targetName = cleanQ
+        .replace(/when|did|he|she|last|visited|visit|came|come|of|the|guest|perticullar|particular|check/gi, '')
+        .trim();
+      if (!targetName && lastMentionedGuest) targetName = lastMentionedGuest;
+
+      if (!targetName) {
+        return `
+          <div>
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">Which guest would you like to check?</div>
+            <div style="font-size: 0.8rem; color: #94a3b8;">Try asking: <em>"When did Manthan last visit?"</em> or <em>"Last visit of Gosavi"</em>.</div>
+          </div>
+        `;
+      }
+
+      const matchEntries = allPool.filter(e => {
+        if (!e) return false;
+        const g = (e.guestname || '').trim().toUpperCase();
+        return areGuestNamesSimilar(g, targetName.toUpperCase()) || g.includes(targetName.toUpperCase());
+      });
+
+      if (matchEntries.length === 0) {
+        return `
+          <div style="color: #f87171; font-weight: 700;">
+            No visit records found for <strong>"${escapeHTML(targetName.toUpperCase())}"</strong> across all surveillance history.
+          </div>
+        `;
+      }
+
+      const { bestName: resolvedName } = findBestFullGuestName(targetName.toUpperCase(), matchEntries);
+      lastMentionedGuest = resolvedName;
+
+      matchEntries.sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+      const latest = matchEntries[0];
+      const latestDt = latest.datetime ? formatDateTimeDMY(latest.datetime) : 'N/A';
+      const latestBus = latest.businessDate ? formatDateDMY(latest.businessDate) : 'N/A';
+      const recentSentence = getEntrySentence(latest, resolvedName);
+      const uniqueDays = new Set(matchEntries.map(e => e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '')).filter(Boolean));
+
+      return `
+        <div>
+          <div style="font-size: 0.74rem; background: rgba(168, 85, 247, 0.2); color: #c084fc; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+            GUEST LAST VISIT RECORD
+          </div>
+          <div class="ai-card-highlight" style="border-left: 4px solid #c084fc;">
+            <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
+              <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #a78bfa; text-decoration: underline;">
+                ${escapeHTML(resolvedName)}
+              </a>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">LAST VISITED:</span>
+              <span class="ai-stat-val" style="color: #38bdf8;">${escapeHTML(latestDt)}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">GAMING DAY:</span>
+              <span class="ai-stat-val">${escapeHTML(latestBus)}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL SESSIONS VISITED:</span>
+              <span class="ai-stat-val">${uniqueDays.size} Days</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL TRANSACTIONS:</span>
+              <span class="ai-stat-val">${matchEntries.length} Transactions</span>
+            </div>
+          </div>
+          <div style="margin-top: 8px; font-size: 0.8rem; background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 8px;">
+            <div style="color: #94a3b8; font-weight: 700; font-size: 0.72rem; text-transform: uppercase;">MOST RECENT TRANSACTION:</div>
+            <div style="color: #ffffff; font-weight: 800; margin-top: 3px;">${escapeHTML(recentSentence.toUpperCase())}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 4. INTENT: OVERALL / LIFETIME BUYING OF PARTICULAR GUEST
+    if (
+      /overall.*\b(buy|buying|in)\b/i.test(cleanQ) ||
+      /total.*\b(buy|buying|in.*of)\b/i.test(cleanQ) ||
+      /lifetime.*\b(buy|buying|in)\b/i.test(cleanQ) ||
+      /how much.*(bought|buy|spent|spend)/i.test(cleanQ)
+    ) {
+      let targetName = cleanQ
+        .replace(/overall|total|lifetime|buying|buy|in|of|perticullar|particular|how|much|has|did|spend|spent|guest|the/gi, '')
+        .trim();
+      if (!targetName && lastMentionedGuest) targetName = lastMentionedGuest;
+
+      if (!targetName) {
+        return `
+          <div>
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">Which guest would you like to check overall buying for?</div>
+            <div style="font-size: 0.8rem; color: #94a3b8;">Try asking: <em>"Overall buying of Manthan Gosavi"</em>.</div>
+          </div>
+        `;
+      }
+
+      const matchEntries = allPool.filter(e => {
+        if (!e) return false;
+        const g = (e.guestname || '').trim().toUpperCase();
+        return areGuestNamesSimilar(g, targetName.toUpperCase()) || g.includes(targetName.toUpperCase());
+      });
+
+      if (matchEntries.length === 0) {
+        return `
+          <div style="color: #f87171; font-weight: 700;">
+            No records found for <strong>"${escapeHTML(targetName.toUpperCase())}"</strong> in the database.
+          </div>
+        `;
+      }
+
+      const { bestName: resolvedName } = findBestFullGuestName(targetName.toUpperCase(), matchEntries);
+      lastMentionedGuest = resolvedName;
+
+      let lifetimeIn = 0;
+      let lifetimeOut = 0;
+      matchEntries.forEach(e => {
+        const amt = Number(e.amount) || 0;
+        const t = (e.type || '').toUpperCase().trim();
+        if (isTotalInType(t)) lifetimeIn += amt;
+        else if (isTotalOutType(t)) lifetimeOut += amt;
+      });
+      const lifetimeResult = lifetimeOut - lifetimeIn;
+
+      const daysMap = {};
+      matchEntries.forEach(e => {
+        const d = e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '');
+        if (!d) return;
+        if (!daysMap[d]) daysMap[d] = { in: 0, out: 0, count: 0 };
+        const amt = Number(e.amount) || 0;
+        const t = (e.type || '').toUpperCase().trim();
+        if (isTotalInType(t)) daysMap[d].in += amt;
+        if (isTotalOutType(t)) daysMap[d].out += amt;
+        daysMap[d].count++;
+      });
+
+      const dayKeys = Object.keys(daysMap).sort();
+      const firstVisit = dayKeys.length > 0 ? formatDateDMY(dayKeys[0]) : 'N/A';
+      const lastVisit = dayKeys.length > 0 ? formatDateDMY(dayKeys[dayKeys.length - 1]) : 'N/A';
+
+      const breakdownRows = dayKeys.map(d => {
+        const row = daysMap[d];
+        const res = row.out - row.in;
+        return `
+          <div style="display: flex; justify-content: space-between; font-size: 0.78rem; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <span style="color: #94a3b8; font-family: monospace;">${escapeHTML(formatDateDMY(d))}</span>
+            <span style="color: #4ade80; font-weight: 700;">+₹${Number(row.in).toLocaleString('en-IN')}</span>
+            <span style="color: #f87171; font-weight: 700;">-₹${Number(row.out).toLocaleString('en-IN')}</span>
+            <span style="color: ${res >= 0 ? '#4ade80' : '#f87171'}; font-weight: 800;">₹${Math.abs(res).toLocaleString('en-IN')}</span>
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div>
+          <div style="font-size: 0.74rem; background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+            LIFETIME OVERALL BUYING & RECORD
+          </div>
+          <div class="ai-card-highlight" style="border-left: 4px solid #4ade80;">
+            <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
+              <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #38bdf8; text-decoration: underline;">
+                ${escapeHTML(resolvedName)}
+              </a>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">OVERALL BUYING (TOTAL IN):</span>
+              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.15rem;">₹${Number(lifetimeIn).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">OVERALL CASHOUT (TOTAL OUT):</span>
+              <span class="ai-stat-val" style="color: #f87171;">₹${Number(lifetimeOut).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">LIFETIME RESULT:</span>
+              <span class="ai-stat-val" style="color: ${lifetimeResult >= 0 ? '#4ade80' : '#f87171'};">
+                ₹${Math.abs(lifetimeResult).toLocaleString('en-IN')} ${lifetimeResult >= 0 ? '(Guest Ahead)' : '(Casino Ahead)'}
+              </span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL SESSIONS VISITED:</span>
+              <span class="ai-stat-val">${dayKeys.length} Days</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">FIRST VISIT:</span>
+              <span class="ai-stat-val">${escapeHTML(firstVisit)}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">LAST VISIT:</span>
+              <span class="ai-stat-val" style="color: #38bdf8;">${escapeHTML(lastVisit)}</span>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; padding: 0 2px;">
+              <span>DATE</span><span>BUY-IN</span><span>CASHOUT</span><span>RESULT</span>
+            </div>
+            <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 6px 10px; max-height: 150px; overflow-y: auto;">
+              ${breakdownRows}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 5. INTENT: TODAY TOTALS / CAGE SUMMARY
+    if (/today.*(total|summary|collection|drop|result)|total.*(in|out|result).*today/i.test(cleanQ)) {
+      let totalIn = 0;
+      let totalOut = 0;
+      todayEntries.forEach(e => {
+        const amt = Number(e.amount) || 0;
+        const t = (e.type || '').toUpperCase().trim();
+        if (isTotalInType(t)) totalIn += amt;
+        else if (isTotalOutType(t)) totalOut += amt;
+      });
+      const result = totalOut - totalIn;
+
+      return `
+        <div>
+          <div style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+            TODAY'S CAGE SUMMARY (${formatDateDMY(activeDate)})
+          </div>
+          <div class="ai-card-highlight">
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL IN (DROP):</span>
+              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(totalIn).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL OUT (PAYOUT):</span>
+              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">₹${Number(totalOut).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">NET RESULT (WIN/LOSS):</span>
+              <span class="ai-stat-val" style="color: ${result >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.15rem;">
+                ₹${Math.abs(result).toLocaleString('en-IN')} ${result < 0 ? '(Casino Profit)' : '(Players Ahead)'}
+              </span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL TRANSACTIONS:</span>
+              <span class="ai-stat-val">${todayEntries.length}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // 6. INTENT: BARRED CHECK
+    if (/barred/i.test(cleanQ)) {
+      const targetName = cleanQ.replace(/is|barred|who|list|the|guest|check/gi, '').trim();
+      if (!targetName || targetName === 'all' || targetName === 'guests') {
+        const count = Array.isArray(barredGuests) ? barredGuests.length : 0;
+        return `
+          <div>
+            <div style="font-weight: 800; color: #ef4444; margin-bottom: 4px;">BARRED GUESTS DATABASE</div>
+            <div style="font-size: 0.85rem; color: #e2e8f0;">Total currently barred guests: <strong>${count}</strong>.</div>
+            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">To check someone specific, ask: <em>"Is Manthan barred?"</em></div>
+          </div>
+        `;
+      }
+
+      const match = (Array.isArray(barredGuests) ? barredGuests : []).find(b => {
+        const bn = (b.guestname || b.name || '').toLowerCase();
+        return bn.includes(targetName) || targetName.includes(bn);
+      });
+
+      if (match) {
+        return `
+          <div style="border-left: 4px solid #ef4444; padding-left: 10px;">
+            <div style="color: #ef4444; font-weight: 900; font-size: 1rem;">⚠️ YES, THIS GUEST IS BARRED!</div>
+            <div style="font-weight: 800; font-size: 1.1rem; color: #ffffff; margin: 4px 0;">${escapeHTML(String(match.guestname || match.name).toUpperCase())}</div>
+            <div style="font-size: 0.82rem; color: #cbd5e1;">Reason: <strong style="color: #f87171;">${escapeHTML(match.reason || 'Not specified')}</strong></div>
+            <div style="font-size: 0.82rem; color: #cbd5e1;">Instruction: <strong>${escapeHTML(match.inst || match.instruction || 'Do not allow entry')}</strong></div>
+          </div>
+        `;
+      } else {
+        return `
+          <div style="color: #4ade80; font-weight: 700;">
+            ✅ No barred record found for <strong>"${escapeHTML(targetName.toUpperCase())}"</strong>. This guest is cleared.
+          </div>
+        `;
+      }
+    }
+
+    // 7. DEFAULT / GUEST PROFILE INTENT (If user enters just a name like "Manthan" or "Gosavi")
+    const matchEntries = allPool.filter(e => {
+      if (!e) return false;
+      const g = (e.guestname || '').trim().toUpperCase();
+      return areGuestNamesSimilar(g, cleanQ.toUpperCase()) || g.includes(cleanQ.toUpperCase());
+    });
+
+    if (matchEntries.length > 0) {
+      const { bestName: resolvedName } = findBestFullGuestName(cleanQ.toUpperCase(), matchEntries);
+      lastMentionedGuest = resolvedName;
+
+      let lifetimeIn = 0;
+      let lifetimeOut = 0;
+      matchEntries.forEach(e => {
+        const amt = Number(e.amount) || 0;
+        const t = (e.type || '').toUpperCase().trim();
+        if (isTotalInType(t)) lifetimeIn += amt;
+        else if (isTotalOutType(t)) lifetimeOut += amt;
+      });
+
+      matchEntries.sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
+      const latest = matchEntries[0];
+      const latestDt = latest.datetime ? formatDateTimeDMY(latest.datetime) : 'N/A';
+
+      return `
+        <div>
+          <div style="font-size: 0.74rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
+            GUEST PROFILE & INTELLIGENCE
+          </div>
+          <div class="ai-card-highlight">
+            <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
+              <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #38bdf8; text-decoration: underline;">
+                ${escapeHTML(resolvedName)}
+              </a>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">LIFETIME BUY-IN (OVERALL):</span>
+              <span class="ai-stat-val" style="color: #4ade80;">₹${Number(lifetimeIn).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">LIFETIME CASHOUT:</span>
+              <span class="ai-stat-val" style="color: #f87171;">₹${Number(lifetimeOut).toLocaleString('en-IN')}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">LAST VISITED:</span>
+              <span class="ai-stat-val" style="color: #38bdf8;">${escapeHTML(latestDt)}</span>
+            </div>
+            <div class="ai-stat-row">
+              <span class="ai-stat-label">TOTAL TRANSACTIONS:</span>
+              <span class="ai-stat-val">${matchEntries.length}</span>
+            </div>
+          </div>
+          <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 6px;">
+            💡 <em>Click the guest name above to view their full Excel Summary Card and entries.</em>
+          </div>
+        </div>
+      `;
+    }
+
+    // Fallback help
+    return `
+      <div>
+        <div style="font-weight: 700; color: #ffffff; margin-bottom: 6px;">
+          I didn't quite catch that. Here are some questions you can ask me completely offline:
+        </div>
+        <ul style="margin: 0; padding-left: 18px; color: #94a3b8; font-size: 0.82rem; line-height: 1.6;">
+          <li><strong style="color: #38bdf8;">"Who is the highest buying today?"</strong></li>
+          <li><strong style="color: #38bdf8;">"Who had the highest cashout today?"</strong></li>
+          <li><strong style="color: #38bdf8;">"Overall buying of Manthan Gosavi"</strong></li>
+          <li><strong style="color: #38bdf8;">"When did Manthan last visit?"</strong></li>
+          <li><strong style="color: #38bdf8;">"Today's total in and result"</strong></li>
+          <li><strong style="color: #38bdf8;">"Is [Name] barred?"</strong></li>
+        </ul>
+      </div>
+    `;
+  }
+
   window.addEventListener('pageshow', applyAutoFit);
 });
 
