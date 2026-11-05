@@ -1,3 +1,6 @@
+var currentBusinessDateStr = '';
+window.currentBusinessDateStr = '';
+
 const CREDIT_TYPES = ['CASHIN', 'C/IN', 'ISSUE', 'KEYIN'];
 const DEBIT_TYPES = ['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT', 'PAID'];
 
@@ -7,6 +10,25 @@ const DEBIT_TYPES = ['CASHOUT', 'C/OUT', 'DEPOSIT', 'KEYOUT', 'PAID'];
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // ==========================================================================
+  // EDGE WRITING ASSISTANCE SUPPRESSION
+  // ==========================================================================
+  const suppressEdgeWritingAssistant = () => {
+    document.querySelectorAll('input, textarea').forEach(el => {
+      el.setAttribute('data-ms-editor', 'false');
+      el.setAttribute('spellcheck', 'false');
+      el.setAttribute('writingsuggestions', 'false');
+      el.setAttribute('autocomplete', 'off');
+    });
+  };
+  suppressEdgeWritingAssistant();
+  document.addEventListener('focusin', (e) => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+      e.target.setAttribute('data-ms-editor', 'false');
+      e.target.setAttribute('spellcheck', 'false');
+      e.target.setAttribute('writingsuggestions', 'false');
+    }
+  }, true);
   // ==========================================================================
   // IN-APP TOAST & CONFIRM SYSTEM (NO BROWSER "LOCALHOST SAYS" DIALOGS)
   // ==========================================================================
@@ -270,7 +292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${year}-${month}-${day}T${hours}:${minutes}`;
   }
 
-  let currentBusinessDateStr = '';
+  currentBusinessDateStr = window.currentBusinessDateStr || '';
 
   // Helper: Get the business date string (YYYY-MM-DD) for a given datetime respecting 06:00 AM cut-over
   function getBusinessDate(dateObj) {
@@ -1518,7 +1540,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
       }
 
-      const displayName = guestName || (match ? (match.guestname || match.name || match.Name || 'BARRED GUEST') : 'BARRED GUEST');
+      const displayName = String(guestName || (match ? (match.guestname || match.name || match.Name || 'BARRED GUEST') : 'BARRED GUEST')).toUpperCase();
       if (warningName) {
         warningName.textContent = displayName;
       }
@@ -1535,11 +1557,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
 
       details += `
-        <div style="display:flex; flex-direction:column; gap:6px; text-align:left; font-size:0.95rem;">
-          <div><strong style="color:#ef4444;">REASON:</strong> <span style="color:#fff;">${escapeHTML(reasonText || 'No reason specified')}</span></div>
-          ${dateText ? `<div><strong style="color:#94a3b8;">DATE:</strong> <span style="color:#fff;">${escapeHTML(formatDateDMY(dateText))}</span></div>` : ''}
-          ${instText ? `<div><strong style="color:#94a3b8;">INSTRUCTION:</strong> <span style="color:#fff;">${escapeHTML(instText)}</span></div>` : ''}
-          ${propText ? `<div><strong style="color:#94a3b8;">PROPERTY:</strong> <span style="color:#fff;">${escapeHTML(propText)}</span></div>` : ''}
+        <div style="display:flex; flex-direction:column; gap:6px; text-align:left; font-size:0.95rem; text-transform: uppercase;">
+          <div><strong style="color:#ef4444; text-transform: uppercase;">REASON:</strong> <span style="color:#fff; text-transform: uppercase;">${escapeHTML(String(reasonText || 'NO REASON SPECIFIED').toUpperCase())}</span></div>
+          ${dateText ? `<div><strong style="color:#94a3b8; text-transform: uppercase;">DATE:</strong> <span style="color:#fff; text-transform: uppercase;">${escapeHTML(formatDateDMY(dateText))}</span></div>` : ''}
+          ${instText ? `<div><strong style="color:#94a3b8; text-transform: uppercase;">INSTRUCTION:</strong> <span style="color:#fff; text-transform: uppercase;">${escapeHTML(String(instText).toUpperCase())}</span></div>` : ''}
+          ${propText ? `<div><strong style="color:#94a3b8; text-transform: uppercase;">PROPERTY:</strong> <span style="color:#fff; text-transform: uppercase;">${escapeHTML(String(propText).toUpperCase())}</span></div>` : ''}
         </div>
       `;
 
@@ -2872,8 +2894,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && majorGuestModal && majorGuestModal.style.display !== 'none') {
+    if (e.key === 'Escape' && majorGuestModal && majorGuestModal.style.display !== 'none' && majorGuestModal.style.display !== '') {
       closeMajorGuestModal();
+      e.stopImmediatePropagation();
     }
   });
 
@@ -6607,6 +6630,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   window.openAIAssistantModal = openAIAssistantModal;
 
   function closeAIAssistantModal() {
+    // If guest summary modal is open in front, close it first
+    if (typeof closeMajorGuestModal === 'function') {
+      closeMajorGuestModal();
+    }
     if (aiAssistantModal) aiAssistantModal.style.display = 'none';
     if (aiChatInput) aiChatInput.value = '';
     if (aiChatMessages) {
@@ -6616,10 +6643,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && aiAssistantModal && aiAssistantModal.style.display === 'flex') {
-      closeAIAssistantModal();
+    if (e.key === 'Escape') {
+      const barredFormModal = document.getElementById('barred-guest-modal');
+      if (barredFormModal && (barredFormModal.style.display === 'flex' || barredFormModal.style.display === 'block')) {
+        barredFormModal.style.display = 'none';
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      const warningModal = document.getElementById('barred-warning-modal');
+      if (warningModal && warningModal.style.display === 'flex') {
+        warningModal.style.display = 'none';
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      const majorModal = document.getElementById('major-guest-details-modal');
+      if (majorModal && majorModal.style.display !== 'none' && majorModal.style.display !== '') {
+        if (typeof closeMajorGuestModal === 'function') closeMajorGuestModal();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      if (aiAssistantModal && aiAssistantModal.style.display === 'flex') {
+        closeAIAssistantModal();
+      }
     }
   });
+
+  const btnClearAIChat = document.getElementById('btn-clear-ai-chat');
+  if (btnClearAIChat) {
+    btnClearAIChat.addEventListener('click', () => {
+      if (aiChatInput) {
+        aiChatInput.value = '';
+        aiChatInput.focus();
+      }
+      if (aiChatMessages) {
+        aiChatMessages.innerHTML = '';
+        renderAIWelcomeMessage();
+      }
+    });
+  }
 
   if (btnInputAI) {
     btnInputAI.addEventListener('click', () => {
@@ -6668,21 +6732,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     aiChatMessages.innerHTML = `
       <div class="ai-msg-bubble-bot">
         <div style="font-weight: 800; color: #38bdf8; font-size: 0.95rem;">
-          👋 Welcome to the Offline Surveillance AI Assistant!
+          👋 Welcome to Surveillance Assistant
         </div>
-        <div style="color: #cbd5e1; font-size: 0.85rem; line-height: 1.5;">
-          I analyze all local transactions, guest profiles, cage totals, and visits <strong>100% offline</strong> without needing internet.
+        <div style="color: #cbd5e1; font-size: 0.84rem; line-height: 1.45;">
+          Type any <strong>guest name</strong> to view today's history and full date-wise record, or ask about top buyers, cage totals, and dates.
         </div>
-        <div style="margin-top: 4px; font-size: 0.78rem; color: #94a3b8; font-weight: 700;">
-          EXAMPLES OF WHAT YOU CAN ASK:
+        <div style="margin-top: 4px; font-size: 0.76rem; color: #94a3b8; font-weight: 800; letter-spacing: 0.5px;">
+          QUICK EXAMPLES (CLICK TO ASK):
         </div>
         <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem;">
           <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Who is the highest buying today?</a>
           <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Who had the highest cashout today?</a>
-          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Overall buying of Manthan Gosavi</a>
-          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• When did Manthan last visit?</a>
           <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Today's total in and result</a>
-          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Is Manthan barred?</a>
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• 03-11-2026</a>
+          <a href="javascript:void(0)" class="ai-sample-q" style="color: #60a5fa; text-decoration: none;">• Who is on the barred list?</a>
         </div>
       </div>
     `;
@@ -6778,6 +6841,215 @@ document.addEventListener('DOMContentLoaded', async () => {
       .trim();
   }
 
+  // Master Helper: Build Comprehensive Guest Report
+  // FIRST SHOW TODAY HISTORY, THEN LIFETIME RECORD, AND LAST DATE-WISE TOTAL IN, TOTAL OUT AND RESULT (STARTING FROM CURRENT DAY)
+  function buildGuestDetailReport(resolvedName, guestEntries, activeDate) {
+    if (!guestEntries || guestEntries.length === 0) {
+      return `
+        <div style="color: #f87171; font-weight: 700;">
+          No records found for <strong>"${escapeHTML(resolvedName)}"</strong> in the database.
+        </div>
+      `;
+    }
+
+    lastMentionedGuest = resolvedName;
+
+    let lifetimeIn = 0;
+    let lifetimeOut = 0;
+    const datesMap = {};
+
+    guestEntries.forEach(e => {
+      const amt = Number(e.amount) || 0;
+      const t = (e.type || '').toUpperCase().trim();
+      const d = e.businessDate || (e.datetime && typeof getBusinessDate === 'function' ? getBusinessDate(e.datetime) : (e.datetime ? e.datetime.split('T')[0] : ''));
+      
+      const isIn = isTotalInType(t);
+      const isOut = isTotalOutType(t);
+      if (isIn) lifetimeIn += amt;
+      else if (isOut) lifetimeOut += amt;
+
+      if (d) {
+        if (!datesMap[d]) {
+          datesMap[d] = { in: 0, out: 0, entries: [] };
+        }
+        if (isIn) datesMap[d].in += amt;
+        if (isOut) datesMap[d].out += amt;
+        datesMap[d].entries.push(e);
+      }
+    });
+
+    const lifetimeNet = lifetimeOut - lifetimeIn;
+    // Sorted descending: CURRENT DAY / MOST RECENT FIRST down to oldest day
+    const sortedDates = Object.keys(datesMap).sort((a, b) => b.localeCompare(a));
+    const firstVisitDate = sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : '';
+    const lastVisitDate = sortedDates.length > 0 ? sortedDates[0] : '';
+
+    // 1. FIRST: TODAY'S HISTORY (Current Gaming Day)
+    const todayData = datesMap[activeDate];
+    const hasToday = !!todayData && todayData.entries.length > 0;
+    const todayIn = hasToday ? todayData.in : 0;
+    const todayOut = hasToday ? todayData.out : 0;
+    const todayNet = todayOut - todayIn;
+
+    let todaySectionHtml = '';
+    if (hasToday) {
+      const todaySortedEntries = [...todayData.entries].sort((a, b) => (a.datetime || '').localeCompare(b.datetime || ''));
+      const todayEntriesList = todaySortedEntries.map(e => {
+        const dt = String(e.datetime || '').trim();
+        const tPart = dt.includes('T') ? dt.split('T')[1] : (dt.includes(' ') ? dt.split(' ')[1] : '');
+        const eTime = tPart ? tPart.slice(0, 5) : '';
+        const s = getEntrySentence(e, resolvedName);
+        return `
+          <div style="display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 0.8rem;">
+            ${eTime ? `<span style="color: #38bdf8; font-family: monospace; font-weight: 800; min-width: 44px;">${escapeHTML(eTime)}</span>` : ''}
+            <span style="color: #ffffff; font-weight: 700; text-transform: uppercase;">${escapeHTML(s)}</span>
+          </div>
+        `;
+      }).join('');
+
+      todaySectionHtml = `
+        <div style="background: rgba(37, 99, 235, 0.18); border: 1.5px solid rgba(56, 189, 248, 0.45); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 0.74rem; background: #2563eb; color: #ffffff; padding: 3px 10px; border-radius: 12px; font-weight: 800; letter-spacing: 0.5px;">
+              📅 TODAY'S HISTORY (${formatDateDMY(activeDate)})
+            </span>
+            <span style="font-size: 0.74rem; color: #94a3b8; font-weight: 700;">
+              ${todaySortedEntries.length} ${todaySortedEntries.length === 1 ? 'Entry' : 'Entries'} Today
+            </span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">TODAY BUY-IN (IN):</span>
+            <span class="ai-stat-val" style="color: #f87171; font-size: 1.05rem;">-₹${Number(todayIn).toLocaleString('en-IN')}</span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">TODAY CASHOUT (OUT):</span>
+            <span class="ai-stat-val" style="color: #4ade80; font-size: 1.05rem;">+₹${Number(todayOut).toLocaleString('en-IN')}</span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">TODAY NET RESULT:</span>
+            <span class="ai-stat-val" style="color: ${todayNet >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.05rem;">
+              ${todayNet < 0 ? `-₹${Math.abs(todayNet).toLocaleString('en-IN')}` : `₹${Number(todayNet).toLocaleString('en-IN')}`}
+            </span>
+          </div>
+          <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed rgba(255,255,255,0.12);">
+            <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">TODAY'S TRANSACTIONS:</div>
+            <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px 10px; max-height: 150px; overflow-y: auto;">
+              ${todayEntriesList}
+            </div>
+          </div>
+        </div>
+      `;
+    } else {
+      todaySectionHtml = `
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; padding: 10px 14px; margin-bottom: 12px;">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.72rem; background: rgba(148, 163, 184, 0.2); color: #cbd5e1; padding: 2px 8px; border-radius: 10px; font-weight: 700;">
+                📅 TODAY (${formatDateDMY(activeDate)})
+              </span>
+              <span style="color: #94a3b8; font-size: 0.82rem;">No transactions recorded today.</span>
+            </div>
+            ${lastVisitDate ? `<span style="font-size: 0.74rem; color: #64748b;">Last visit: <strong style="color: #38bdf8;">${formatDateDMY(lastVisitDate)}</strong></span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    // 2. AND LAST: DATE-WISE TOTAL IN, TOTAL OUT AND RESULT ON THAT DAY (STARTING FROM CURRENT DAY)
+    const dateRowsHtml = sortedDates.map(d => {
+      const row = datesMap[d];
+      const res = row.out - row.in;
+      const isTodayRow = (d === activeDate);
+      const rowBg = isTodayRow ? 'background: rgba(37, 99, 235, 0.12);' : '';
+      return `
+        <div style="display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.2fr; padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.06); align-items: center; font-size: 0.8rem; ${rowBg}">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="color: #ffffff; font-weight: 700; font-family: monospace;">${escapeHTML(formatDateDMY(d))}</span>
+            ${isTodayRow ? `<span style="background: #2563eb; color: #ffffff; font-size: 0.62rem; padding: 1px 5px; border-radius: 4px; font-weight: 800;">TODAY</span>` : ''}
+          </div>
+          <div style="text-align: right; color: #f87171; font-weight: 700;">
+            -₹${Number(row.in).toLocaleString('en-IN')}
+          </div>
+          <div style="text-align: right; color: #4ade80; font-weight: 700;">
+            +₹${Number(row.out).toLocaleString('en-IN')}
+          </div>
+          <div style="text-align: right; color: ${res >= 0 ? '#4ade80' : '#f87171'}; font-weight: 800;">
+            ${res < 0 ? `-₹${Math.abs(res).toLocaleString('en-IN')}` : `₹${Number(res).toLocaleString('en-IN')}`}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div>
+        <!-- GUEST TITLE HEADER -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="font-size: 1.3rem; font-weight: 900; color: #ffffff;">
+            <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #38bdf8; text-decoration: underline;">
+              ${escapeHTML(resolvedName)}
+            </a>
+          </div>
+          <span style="font-size: 0.72rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 10px; border-radius: 12px; font-weight: 800;">
+            ${sortedDates.length} ${sortedDates.length === 1 ? 'Day' : 'Days'} • ${guestEntries.length} Txns
+          </span>
+        </div>
+
+        <!-- FIRST: SHOW TODAY HISTORY -->
+        ${todaySectionHtml}
+
+        <!-- LIFETIME OVERALL RECORD -->
+        <div class="ai-card-highlight" style="border-left: 4px solid #38bdf8; margin-bottom: 12px;">
+          <div style="font-size: 0.72rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 6px;">
+            LIFETIME OVERALL RECORD:
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">LIFETIME BUY-IN (TOTAL IN):</span>
+            <span class="ai-stat-val" style="color: #f87171; font-size: 1.05rem;">-₹${Number(lifetimeIn).toLocaleString('en-IN')}</span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">LIFETIME CASHOUT (TOTAL OUT):</span>
+            <span class="ai-stat-val" style="color: #4ade80; font-size: 1.05rem;">+₹${Number(lifetimeOut).toLocaleString('en-IN')}</span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">LIFETIME RESULT:</span>
+            <span class="ai-stat-val" style="color: ${lifetimeNet >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.05rem;">
+              ${lifetimeNet < 0 ? `-₹${Math.abs(lifetimeNet).toLocaleString('en-IN')}` : `₹${Number(lifetimeNet).toLocaleString('en-IN')}`}
+            </span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">LAST VISIT:</span>
+            <span class="ai-stat-val" style="color: #38bdf8;">${escapeHTML(formatDateDMY(lastVisitDate))}</span>
+          </div>
+          <div class="ai-stat-row">
+            <span class="ai-stat-label">FIRST VISIT:</span>
+            <span class="ai-stat-val">${escapeHTML(formatDateDMY(firstVisitDate))}</span>
+          </div>
+        </div>
+
+        <!-- AND LAST: DATE-WISE TOTAL IN, TOTAL OUT AND RESULT ON THAT DAY -->
+        <div style="margin-top: 12px;">
+          <div style="font-size: 0.74rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.5px;">
+            📊 DATE-WISE HISTORY (TOTAL IN, TOTAL OUT & RESULT ON THAT DAY):
+          </div>
+          <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); overflow: hidden;">
+            <div style="display: grid; grid-template-columns: 1.3fr 1fr 1fr 1.2fr; padding: 7px 10px; background: rgba(255,255,255,0.07); font-size: 0.72rem; font-weight: 800; color: #94a3b8; text-transform: uppercase;">
+              <span>DATE</span>
+              <span style="text-align: right;">TOTAL IN</span>
+              <span style="text-align: right;">TOTAL OUT</span>
+              <span style="text-align: right;">RESULT</span>
+            </div>
+            <div style="max-height: 220px; overflow-y: auto;">
+              ${dateRowsHtml}
+            </div>
+          </div>
+          <div style="font-size: 0.72rem; color: #64748b; margin-top: 6px;">
+            💡 <em>Sorted starting from current day. Click guest name above to view Excel Summary Card.</em>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function computeOfflineAnswer(rawQuery) {
     const q = String(rawQuery || '').toLowerCase().trim();
     const cleanQ = q.replace(/[?!,.]/g, '');
@@ -6800,7 +7072,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const guestCandidate = parseGuestFromDateQuery(cleanQ);
 
-    // 1. INTENT: SPECIFIC GUEST ON A SPECIFIC DATE (e.g. "Buying of Manthan on 03-11-2026", "Manthan on 4th")
+    // 1. INTENT: SPECIFIC GUEST ON A SPECIFIC DATE (e.g. "Buying on 03-11-2026", "Guest on 4th")
     if (specificDate && guestCandidate) {
       const matchEntries = targetDateEntries.filter(e => {
         if (!e) return false;
@@ -6851,16 +7123,16 @@ document.addEventListener('DOMContentLoaded', async () => {
               
               <div class="ai-stat-row">
                 <span class="ai-stat-label">TOTAL BUY-IN ON ${escapeHTML(formatDateDMY(targetDate))}:</span>
-                <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(totalIn).toLocaleString('en-IN')}</span>
+                <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">-₹${Number(totalIn).toLocaleString('en-IN')}</span>
               </div>
               <div class="ai-stat-row">
                 <span class="ai-stat-label">TOTAL CASHOUT ON ${escapeHTML(formatDateDMY(targetDate))}:</span>
-                <span class="ai-stat-val" style="color: #f87171;">₹${Number(totalOut).toLocaleString('en-IN')}</span>
+                <span class="ai-stat-val" style="color: #4ade80;">+₹${Number(totalOut).toLocaleString('en-IN')}</span>
               </div>
               <div class="ai-stat-row">
                 <span class="ai-stat-label">RESULT ON ${escapeHTML(formatDateDMY(targetDate))}:</span>
-                <span class="ai-stat-val" style="color: ${dateResult >= 0 ? '#4ade80' : '#f87171'};">
-                  ₹${Math.abs(dateResult).toLocaleString('en-IN')} ${dateResult >= 0 ? '(Guest Ahead)' : '(Cage Ahead)'}
+                <span class="ai-stat-val" style="color: ${dateResult >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.05rem;">
+                  ${dateResult < 0 ? `-₹${Math.abs(dateResult).toLocaleString('en-IN')}` : `₹${Number(dateResult).toLocaleString('en-IN')}`}
                 </span>
               </div>
               <div class="ai-stat-row">
@@ -6979,16 +7251,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="ai-card-highlight">
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL IN (DROP):</span>
-              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(totalIn).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">-₹${Number(totalIn).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL OUT (PAYOUT):</span>
-              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">₹${Number(totalOut).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">+₹${Number(totalOut).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
-              <span class="ai-stat-label">NET RESULT (WIN/LOSS):</span>
-              <span class="ai-stat-val" style="color: ${result >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.15rem;">
-                ₹${Math.abs(result).toLocaleString('en-IN')} ${result < 0 ? '(Casino Profit)' : '(Players Ahead)'}
+              <span class="ai-stat-label">NET RESULT:</span>
+              <span class="ai-stat-val" style="color: ${(totalOut - totalIn) >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.15rem;">
+                ${(totalOut - totalIn) < 0 ? `-₹${Math.abs(totalOut - totalIn).toLocaleString('en-IN')}` : `₹${Number(totalOut - totalIn).toLocaleString('en-IN')}`}
               </span>
             </div>
             ${topBuyerHtml}
@@ -7092,16 +7364,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL BUY-IN ON THIS DATE:</span>
-              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">-₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL CASHOUT ON THIS DATE:</span>
-              <span class="ai-stat-val" style="color: #f87171;">₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #4ade80;">+₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">RESULT ON THIS DATE:</span>
-              <span class="ai-stat-val" style="color: ${top.result >= 0 ? '#4ade80' : '#f87171'};">
-                ₹${Math.abs(top.result).toLocaleString('en-IN')} ${top.result >= 0 ? '(Guest Ahead)' : '(Cage Ahead)'}
+              <span class="ai-stat-val" style="color: ${(top.totalOut - top.totalIn) >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.05rem;">
+                ${(top.totalOut - top.totalIn) < 0 ? `-₹${Math.abs(top.totalOut - top.totalIn).toLocaleString('en-IN')}` : `₹${Number(top.totalOut - top.totalIn).toLocaleString('en-IN')}`}
               </span>
             </div>
             <div class="ai-stat-row">
@@ -7180,15 +7452,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL CASHOUT ON THIS DATE:</span>
-              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">+₹${Number(top.totalOut).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL BUY-IN ON THIS DATE:</span>
-              <span class="ai-stat-val" style="color: #4ade80;">₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #f87171;">-₹${Number(top.totalIn).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">RESULT ON THIS DATE:</span>
-              <span class="ai-stat-val" style="color: ${top.result >= 0 ? '#4ade80' : '#f87171'};">₹${Math.abs(top.result).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: ${(top.totalOut - top.totalIn) >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.05rem;">
+                ${(top.totalOut - top.totalIn) < 0 ? `-₹${Math.abs(top.totalOut - top.totalIn).toLocaleString('en-IN')}` : `₹${Number(top.totalOut - top.totalIn).toLocaleString('en-IN')}`}
+              </span>
             </div>
           </div>
           <div style="margin-top: 10px;">
@@ -7217,7 +7491,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return `
           <div>
             <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">Which guest would you like to check?</div>
-            <div style="font-size: 0.8rem; color: #94a3b8;">Try asking: <em>"When did Manthan last visit?"</em> or <em>"Last visit of Gosavi"</em>.</div>
+            <div style="font-size: 0.8rem; color: #94a3b8;">Try asking: <em>"When did [Guest Name] last visit?"</em>.</div>
           </div>
         `;
       }
@@ -7282,136 +7556,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       `;
     }
 
-    // 6. INTENT: OVERALL / LIFETIME BUYING OF PARTICULAR GUEST
-    if (
-      /overall.*\b(buy|buying|in)\b/i.test(cleanQ) ||
-      /total.*\b(buy|buying|in.*of)\b/i.test(cleanQ) ||
-      /lifetime.*\b(buy|buying|in)\b/i.test(cleanQ) ||
-      /how much.*(bought|buy|spent|spend)/i.test(cleanQ) ||
-      /\bbuying\s+of\b/i.test(cleanQ) ||
-      /\bbuy-?in\s+of\b/i.test(cleanQ) ||
-      /\bhistory\s+of\b/i.test(cleanQ)
-    ) {
-      let targetName = cleanQ
-        .replace(/\b(overall|total|lifetime|buying|buy|in|of|perticullar|particular|how|much|has|did|spend|spent|guest|the|tell|me|show|what|is|are|check|find|search|for|give)\b/gi, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (!targetName && lastMentionedGuest) targetName = lastMentionedGuest;
+    // 6. INTENT: GUEST NAME TYPED OR ASKING ABOUT GUEST (USER JUST NEED TO TYPE GUEST NAME)
+    // "IF USER TYPE GUEST NAME FIRST SHOW TODAY HISTORY AND LAST DATE WISE TOTAL IN TOTAL OUT AND RESULT ON THAT DAY"
+    const guestSearchClean = (guestCandidate || cleanQ)
+      .replace(/\b(guest|profile|check|search|find|show|details|info|about|for|who is|who|overall|total|lifetime|buying|buy|in|out|cashin|cashout|result|history|record|transactions|entries|tell|me|what|did|has|perticullar|particular|give)\b/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
 
-      if (!targetName) {
-        return `
-          <div>
-            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 4px;">Which guest would you like to check overall buying for?</div>
-            <div style="font-size: 0.8rem; color: #94a3b8;">Try asking: <em>"Overall buying of Manthan Gosavi"</em>.</div>
-          </div>
-        `;
-      }
+    const candidateToSearch = (guestSearchClean || guestCandidate || cleanQ).toUpperCase();
 
+    if (candidateToSearch && candidateToSearch.length >= 2) {
       const matchEntries = allPool.filter(e => {
         if (!e) return false;
         const g = (e.guestname || '').trim().toUpperCase();
-        return areGuestNamesSimilar(g, targetName.toUpperCase()) || g.includes(targetName.toUpperCase());
+        return areGuestNamesSimilar(g, candidateToSearch) || g.includes(candidateToSearch) || candidateToSearch.includes(g);
       });
 
-      if (matchEntries.length === 0) {
-        return `
-          <div style="color: #f87171; font-weight: 700;">
-            No records found for <strong>"${escapeHTML(targetName.toUpperCase())}"</strong> in the database.
-          </div>
-        `;
+      if (matchEntries.length > 0) {
+        const { bestName: resolvedName } = findBestFullGuestName(candidateToSearch, matchEntries);
+        // Find all historical entries for this resolved name
+        const allGuestEntries = allPool.filter(e => {
+          const g = (e.guestname || '').trim().toUpperCase();
+          return areGuestNamesSimilar(g, resolvedName.toUpperCase()) || g === resolvedName.toUpperCase();
+        });
+        return buildGuestDetailReport(resolvedName, allGuestEntries, activeDate);
       }
-
-      const { bestName: resolvedName } = findBestFullGuestName(targetName.toUpperCase(), matchEntries);
-      lastMentionedGuest = resolvedName;
-
-      let lifetimeIn = 0;
-      let lifetimeOut = 0;
-      matchEntries.forEach(e => {
-        const amt = Number(e.amount) || 0;
-        const t = (e.type || '').toUpperCase().trim();
-        if (isTotalInType(t)) lifetimeIn += amt;
-        else if (isTotalOutType(t)) lifetimeOut += amt;
-      });
-      const lifetimeResult = lifetimeOut - lifetimeIn;
-
-      const daysMap = {};
-      matchEntries.forEach(e => {
-        const d = e.businessDate || (e.datetime && typeof getBusinessDate === 'function' ? getBusinessDate(e.datetime) : '');
-        if (!d) return;
-        if (!daysMap[d]) daysMap[d] = { in: 0, out: 0, count: 0 };
-        const amt = Number(e.amount) || 0;
-        const t = (e.type || '').toUpperCase().trim();
-        if (isTotalInType(t)) daysMap[d].in += amt;
-        if (isTotalOutType(t)) daysMap[d].out += amt;
-        daysMap[d].count++;
-      });
-
-      const dayKeys = Object.keys(daysMap).sort();
-      const firstVisit = dayKeys.length > 0 ? formatDateDMY(dayKeys[0]) : 'N/A';
-      const lastVisit = dayKeys.length > 0 ? formatDateDMY(dayKeys[dayKeys.length - 1]) : 'N/A';
-
-      const breakdownRows = dayKeys.map(d => {
-        const row = daysMap[d];
-        const res = row.out - row.in;
-        return `
-          <div style="display: flex; justify-content: space-between; font-size: 0.78rem; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
-            <span style="color: #94a3b8; font-family: monospace;">${escapeHTML(formatDateDMY(d))}</span>
-            <span style="color: #4ade80; font-weight: 700;">+₹${Number(row.in).toLocaleString('en-IN')}</span>
-            <span style="color: #f87171; font-weight: 700;">-₹${Number(row.out).toLocaleString('en-IN')}</span>
-            <span style="color: ${res >= 0 ? '#4ade80' : '#f87171'}; font-weight: 800;">₹${Math.abs(res).toLocaleString('en-IN')}</span>
-          </div>
-        `;
-      }).join('');
-
-      return `
-        <div>
-          <div style="font-size: 0.74rem; background: rgba(34, 197, 94, 0.2); color: #4ade80; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
-            LIFETIME OVERALL BUYING & RECORD
-          </div>
-          <div class="ai-card-highlight" style="border-left: 4px solid #4ade80;">
-            <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
-              <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #38bdf8; text-decoration: underline;">
-                ${escapeHTML(resolvedName)}
-              </a>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">OVERALL BUYING (TOTAL IN):</span>
-              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.15rem;">₹${Number(lifetimeIn).toLocaleString('en-IN')}</span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">OVERALL CASHOUT (TOTAL OUT):</span>
-              <span class="ai-stat-val" style="color: #f87171;">₹${Number(lifetimeOut).toLocaleString('en-IN')}</span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">LIFETIME RESULT:</span>
-              <span class="ai-stat-val" style="color: ${lifetimeResult >= 0 ? '#4ade80' : '#f87171'};">
-                ₹${Math.abs(lifetimeResult).toLocaleString('en-IN')} ${lifetimeResult >= 0 ? '(Guest Ahead)' : '(Casino Ahead)'}
-              </span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">TOTAL SESSIONS VISITED:</span>
-              <span class="ai-stat-val">${dayKeys.length} Days</span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">FIRST VISIT:</span>
-              <span class="ai-stat-val">${escapeHTML(firstVisit)}</span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">LAST VISIT:</span>
-              <span class="ai-stat-val" style="color: #38bdf8;">${escapeHTML(lastVisit)}</span>
-            </div>
-          </div>
-
-          <div style="margin-top: 10px;">
-            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #94a3b8; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; padding: 0 2px;">
-              <span>DATE</span><span>BUY-IN</span><span>CASHOUT</span><span>RESULT</span>
-            </div>
-            <div style="background: rgba(0, 0, 0, 0.35); border-radius: 8px; padding: 6px 10px; max-height: 150px; overflow-y: auto;">
-              ${breakdownRows}
-            </div>
-          </div>
-        </div>
-      `;
     }
 
     // 7. INTENT: TODAY TOTALS / CAGE SUMMARY (If no specific date)
@@ -7434,16 +7603,16 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="ai-card-highlight">
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL IN (DROP):</span>
-              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">₹${Number(totalIn).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">-₹${Number(totalIn).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
               <span class="ai-stat-label">TOTAL OUT (PAYOUT):</span>
-              <span class="ai-stat-val" style="color: #f87171; font-size: 1.1rem;">₹${Number(totalOut).toLocaleString('en-IN')}</span>
+              <span class="ai-stat-val" style="color: #4ade80; font-size: 1.1rem;">+₹${Number(totalOut).toLocaleString('en-IN')}</span>
             </div>
             <div class="ai-stat-row">
-              <span class="ai-stat-label">NET RESULT (WIN/LOSS):</span>
-              <span class="ai-stat-val" style="color: ${result >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.15rem;">
-                ₹${Math.abs(result).toLocaleString('en-IN')} ${result < 0 ? '(Casino Profit)' : '(Players Ahead)'}
+              <span class="ai-stat-label">NET RESULT:</span>
+              <span class="ai-stat-val" style="color: ${(totalOut - totalIn) >= 0 ? '#4ade80' : '#f87171'}; font-size: 1.15rem;">
+                ${(totalOut - totalIn) < 0 ? `-₹${Math.abs(totalOut - totalIn).toLocaleString('en-IN')}` : `₹${Number(totalOut - totalIn).toLocaleString('en-IN')}`}
               </span>
             </div>
             <div class="ai-stat-row">
@@ -7458,14 +7627,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 8. INTENT: BARRED CHECK
     if (/barred/i.test(cleanQ)) {
       const targetName = cleanQ.replace(/is|barred|who|list|the|guest|check/gi, '').trim();
-      const barredList = (typeof barredGuests !== 'undefined' && Array.isArray(barredGuests)) ? barredGuests : [];
+      const barredList = (typeof globalBarredList !== 'undefined' && Array.isArray(globalBarredList) && globalBarredList.length > 0)
+        ? globalBarredList
+        : ((typeof barredGuests !== 'undefined' && Array.isArray(barredGuests)) ? barredGuests : []);
       if (!targetName || targetName === 'all' || targetName === 'guests') {
         const count = barredList.length;
         return `
-          <div>
-            <div style="font-weight: 800; color: #ef4444; margin-bottom: 4px;">BARRED GUESTS DATABASE</div>
-            <div style="font-size: 0.85rem; color: #e2e8f0;">Total currently barred guests: <strong>${count}</strong>.</div>
-            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">To check someone specific, ask: <em>"Is Manthan barred?"</em></div>
+          <div style="text-transform: uppercase;">
+            <div style="font-weight: 800; color: #ef4444; margin-bottom: 4px; text-transform: uppercase;">BARRED GUESTS DATABASE</div>
+            <div style="font-size: 0.85rem; color: #e2e8f0; text-transform: uppercase;">TOTAL CURRENTLY BARRED GUESTS: <strong>${count}</strong>.</div>
+            <div style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px; text-transform: uppercase;">TO CHECK A SPECIFIC GUEST, ASK: <em>"IS [NAME] BARRED?"</em></div>
           </div>
         `;
       }
@@ -7477,98 +7648,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (match) {
         return `
-          <div style="border-left: 4px solid #ef4444; padding-left: 10px;">
-            <div style="color: #ef4444; font-weight: 900; font-size: 1rem;">⚠️ YES, THIS GUEST IS BARRED!</div>
-            <div style="font-weight: 800; font-size: 1.1rem; color: #ffffff; margin: 4px 0;">${escapeHTML(String(match.guestname || match.name).toUpperCase())}</div>
-            <div style="font-size: 0.82rem; color: #cbd5e1;">Reason: <strong style="color: #f87171;">${escapeHTML(match.reason || 'Not specified')}</strong></div>
-            <div style="font-size: 0.82rem; color: #cbd5e1;">Instruction: <strong>${escapeHTML(match.inst || match.instruction || 'Do not allow entry')}</strong></div>
+          <div style="border-left: 4px solid #ef4444; padding-left: 10px; text-transform: uppercase;">
+            <div style="color: #ef4444; font-weight: 900; font-size: 1.05rem; text-transform: uppercase;">⚠️ YES, THIS GUEST IS BARRED!</div>
+            <div style="font-weight: 800; font-size: 1.15rem; color: #ffffff; margin: 5px 0; text-transform: uppercase;">${escapeHTML(String(match.guestname || match.name).toUpperCase())}</div>
+            <div style="font-size: 0.85rem; color: #cbd5e1; text-transform: uppercase;">REASON: <strong style="color: #f87171; text-transform: uppercase;">${escapeHTML(String(match.reason || 'NOT SPECIFIED').toUpperCase())}</strong></div>
+            <div style="font-size: 0.85rem; color: #cbd5e1; text-transform: uppercase;">INSTRUCTION: <strong style="text-transform: uppercase;">${escapeHTML(String(match.inst || match.instruction || 'DO NOT ALLOW ENTRY').toUpperCase())}</strong></div>
           </div>
         `;
       } else {
         return `
-          <div style="color: #4ade80; font-weight: 700;">
-            ✅ No barred record found for <strong>"${escapeHTML(targetName.toUpperCase())}"</strong>. This guest is cleared.
+          <div style="color: #4ade80; font-weight: 800; text-transform: uppercase;">
+            ✅ NO BARRED RECORD FOUND FOR "${escapeHTML(targetName.toUpperCase())}". THIS GUEST IS CLEARED.
           </div>
         `;
       }
-    }
-
-    // 9. DEFAULT / GUEST PROFILE INTENT (If user enters just a name like "Manthan" or "Gosavi" or "Guest Manthan")
-    const cleanGuestCandidate = cleanQ.replace(/\b(guest|profile|check|search|find|show|details|info|about|for|who is|who)\b/gi, ' ').replace(/\s+/g, ' ').trim();
-    const guestSearchTarget = (cleanGuestCandidate || cleanQ).toUpperCase();
-
-    const matchEntries = allPool.filter(e => {
-      if (!e) return false;
-      const g = (e.guestname || '').trim().toUpperCase();
-      return areGuestNamesSimilar(g, guestSearchTarget) || g.includes(guestSearchTarget);
-    });
-
-    if (matchEntries.length > 0) {
-      const { bestName: resolvedName } = findBestFullGuestName(guestSearchTarget, matchEntries);
-      lastMentionedGuest = resolvedName;
-
-      let lifetimeIn = 0;
-      let lifetimeOut = 0;
-      matchEntries.forEach(e => {
-        const amt = Number(e.amount) || 0;
-        const t = (e.type || '').toUpperCase().trim();
-        if (isTotalInType(t)) lifetimeIn += amt;
-        else if (isTotalOutType(t)) lifetimeOut += amt;
-      });
-
-      matchEntries.sort((a, b) => (b.datetime || '').localeCompare(a.datetime || ''));
-      const latest = matchEntries[0];
-      const latestDt = latest.datetime ? formatDateTimeDMY(latest.datetime) : 'N/A';
-
-      return `
-        <div>
-          <div style="font-size: 0.74rem; background: rgba(56, 189, 248, 0.2); color: #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 800; text-transform: uppercase; display: inline-block; margin-bottom: 8px;">
-            GUEST PROFILE & INTELLIGENCE
-          </div>
-          <div class="ai-card-highlight">
-            <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; margin-bottom: 6px;">
-              <a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(resolvedName)}" style="color: #38bdf8; text-decoration: underline;">
-                ${escapeHTML(resolvedName)}
-              </a>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">LIFETIME BUY-IN (OVERALL):</span>
-              <span class="ai-stat-val" style="color: #4ade80;">₹${Number(lifetimeIn).toLocaleString('en-IN')}</span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">LIFETIME CASHOUT:</span>
-              <span class="ai-stat-val" style="color: #f87171;">₹${Number(lifetimeOut).toLocaleString('en-IN')}</span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">LAST VISITED:</span>
-              <span class="ai-stat-val" style="color: #38bdf8;">${escapeHTML(latestDt)}</span>
-            </div>
-            <div class="ai-stat-row">
-              <span class="ai-stat-label">TOTAL TRANSACTIONS:</span>
-              <span class="ai-stat-val">${matchEntries.length}</span>
-            </div>
-          </div>
-          <div style="font-size: 0.76rem; color: #94a3b8; margin-top: 6px;">
-            💡 <em>Click the guest name above to view their full Excel Summary Card and entries.</em>
-          </div>
-        </div>
-      `;
     }
 
     // Fallback help
     return `
       <div>
         <div style="font-weight: 700; color: #ffffff; margin-bottom: 6px;">
-          I didn't quite catch that. Here are examples of questions you can ask me completely offline:
+          I didn't find an exact match. Here are examples of what you can ask:
         </div>
         <ul style="margin: 0; padding-left: 18px; color: #94a3b8; font-size: 0.82rem; line-height: 1.6;">
+          <li><strong style="color: #38bdf8;">Type any guest name</strong> <span style="color:#64748b;">(shows today's history & full date-wise record)</span></li>
           <li><strong style="color: #38bdf8;">"Who is the highest buying today?"</strong></li>
-          <li><strong style="color: #38bdf8;">"Who is the highest buying on 03-11-2026?"</strong></li>
-          <li><strong style="color: #38bdf8;">"Buying of Manthan Gosavi on 03-11-2026"</strong></li>
-          <li><strong style="color: #38bdf8;">"Overall buying of Manthan Gosavi"</strong></li>
-          <li><strong style="color: #38bdf8;">"When did Manthan last visit?"</strong></li>
-          <li><strong style="color: #38bdf8;">"Total in on 03-11-2026"</strong></li>
-          <li><strong style="color: #38bdf8;">"Is [Name] barred?"</strong></li>
+          <li><strong style="color: #38bdf8;">"Who had the highest cashout today?"</strong></li>
+          <li><strong style="color: #38bdf8;">"Today's total in and result"</strong></li>
+          <li><strong style="color: #38bdf8;">"03-11-2026"</strong> <span style="color:#64748b;">(cage summary for specific date)</span></li>
+          <li><strong style="color: #38bdf8;">"Who is on the barred list?"</strong></li>
         </ul>
       </div>
     `;

@@ -5093,13 +5093,16 @@ body.ultra-compact-view {
   background: rgba(30, 41, 59, 0.85);
   border: 1px solid rgba(56, 189, 248, 0.35);
   color: #e2e8f0;
-  border-radius: 16px;
-  padding: 5px 12px;
-  font-size: 0.75rem;
+  border-radius: 14px;
+  padding: 4px 11px;
+  font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
 
 .ai-quick-chip:hover {
@@ -5127,16 +5130,18 @@ body.ultra-compact-view {
   background: #1e293b;
   border: 1.5px solid rgba(56, 189, 248, 0.28);
   color: #f1f5f9;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 16px 16px 16px 2px;
-  max-width: 96%;
+  max-width: 100%;
   width: 100%;
   box-sizing: border-box;
   font-size: 0.86rem;
   box-shadow: 0 4px 18px rgba(0,0,0,0.45);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .ai-card-highlight {
@@ -5179,6 +5184,158 @@ body.ultra-compact-view {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+/* Ensure Barred Warning Alert is 100% in CAPITAL LETTERS */
+#barred-warning-modal,
+#barred-warning-modal *,
+.barred-warning-text {
+  text-transform: uppercase !important;
+}
+
+/* Ensure Guest Details Popup opens in front of AI Assistant modal */
+#major-guest-details-modal {
+  z-index: 10050 !important;
+}
+
+/* Ensure Barred Warning Modal opens on top of everything */
+#barred-warning-modal {
+  z-index: 10100 !important;
+}
+
+#btn-clear-ai-chat:hover {
+  background: rgba(239, 68, 68, 0.3) !important;
+  border-color: #ef4444 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+/* Disable Microsoft Edge writing assistance floating pen icon and controls */
+[data-ms-editor="false"],
+input,
+textarea {
+  -webkit-user-modify: read-write-plaintext-only;
+}
+input::-ms-clear,
+input::-ms-reveal,
+textarea::-ms-clear,
+textarea::-ms-reveal,
+input::-webkit-clear-button {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ==========================================================================
+   ADD BARRED GUEST MODAL - AUTO FIT TO PAGE & AUTO RESIZE ENGINE
+   ========================================================================== */
+#barred-guest-modal {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000 !important;
+  padding: clamp(8px, 2vh, 18px);
+  box-sizing: border-box;
+}
+
+#barred-guest-modal .modal-content,
+#barred-guest-modal .barred-guest-modal-content {
+  width: min(840px, 95vw) !important;
+  max-width: 95vw !important;
+  max-height: min(92vh, 92dvh) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #0f172a !important;
+  border: 1.5px solid rgba(56, 189, 248, 0.4) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85) !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+
+#barred-guest-modal .modal-header {
+  flex-shrink: 0 !important;
+  padding: 12px 20px !important;
+  background: rgba(15, 23, 42, 0.98) !important;
+  border-bottom: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+#barred-guest-modal .modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 16px 20px !important;
+}
+
+#barred-guest-modal .modal-footer {
+  flex-shrink: 0 !important;
+  padding: 12px 20px !important;
+  background: rgba(15, 23, 42, 0.98) !important;
+  border-top: 1.5px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Compact screens & laptops (Height < 760px) - Auto-resize inputs and photo box */
+@media (max-height: 760px) {
+  #barred-guest-modal .modal-content,
+  #barred-guest-modal .barred-guest-modal-content {
+    max-height: 96vh !important;
+    max-height: 96dvh !important;
+  }
+  #barred-guest-modal .modal-header {
+    padding: 8px 16px !important;
+  }
+  #barred-guest-modal .modal-body {
+    padding: 10px 16px !important;
+  }
+  #barred-guest-modal .modal-footer {
+    padding: 8px 16px !important;
+  }
+  #barred-guest-form {
+    gap: 12px !important;
+  }
+  #barred-guest-form .form-group {
+    margin-bottom: 2px !important;
+    gap: 8px !important;
+  }
+  #barred-guest-form label {
+    font-size: 0.78rem !important;
+    width: 95px !important;
+    min-width: 95px !important;
+  }
+  #barred-guest-form input {
+    height: 32px !important;
+    padding: 4px 10px !important;
+    font-size: 0.85rem !important;
+  }
+  #barred-photo-box {
+    min-height: 140px !important;
+    max-height: 210px !important;
+    padding: 8px !important;
+  }
+}
+
+/* Narrow screens & tablets (Width < 768px) - Auto-stack into single column */
+@media (max-width: 768px) {
+  #barred-guest-modal .modal-content,
+  #barred-guest-modal .barred-guest-modal-content {
+    width: 96vw !important;
+    max-width: 96vw !important;
+  }
+  #barred-guest-form {
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+  #barred-photo-box {
+    min-height: 150px !important;
+    width: 100% !important;
+  }
+}
+
+
+
 
 
 
