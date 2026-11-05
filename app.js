@@ -321,6 +321,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).format(value);
   }
 
+  // Helper: Format and continuously update the Date & 24h Time tag (DATE: YYYY-MM-DD HH:MM:SS HRS)
+  function updateAllEntriesHeaderDateTime() {
+    const el = document.getElementById('all-entries-gaming-date');
+    if (!el) return;
+    const now = getServerTimeDate();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const dateStr = currentBusinessDateStr || getBusinessDate() || `${y}-${m}-${d}`;
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    el.textContent = `DATE: ${dateStr} ${hh}:${mm}:${ss} HRS`;
+  }
+  // Initialize and keep the date & 24h time continuously updated in real time
+  updateAllEntriesHeaderDateTime();
+  setInterval(updateAllEntriesHeaderDateTime, 1000);
+
   let allEntriesArchiveData = [];
   let archiveMetadata = {};
 
@@ -930,10 +948,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       allEntries = data.entries || [];
       if (data.currentBusinessDate) {
         currentBusinessDateStr = data.currentBusinessDate;
-        const gamingDateEl = document.getElementById('all-entries-gaming-date');
-        if (gamingDateEl) {
-          gamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
-        }
+        updateAllEntriesHeaderDateTime();
         if (homeGamingDateDisplay) {
           homeGamingDateDisplay.textContent = currentBusinessDateStr;
         }
@@ -1264,10 +1279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       allEntriesPanelCard.style.setProperty('display', 'flex', 'important');
       if(btnAllEntries) btnAllEntries.classList.add('active');
       
-      const gamingDateEl = document.getElementById('all-entries-gaming-date');
-      if (gamingDateEl) {
-        gamingDateEl.textContent = `TODAY GAMING DAY: ${currentBusinessDateStr || getBusinessDate()}`;
-      }
+      updateAllEntriesHeaderDateTime();
 
       // Always select the current business day
       const todayDate = currentBusinessDateStr || getBusinessDate();
@@ -4893,6 +4905,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const qCDSelect = o.cdSelectId ? document.getElementById(o.cdSelectId) : null;
     const qCashier = o.cashierInputId ? document.getElementById(o.cashierInputId) : null;
 
+    // Ensure completely placeholder-free and clean without ugly scrollbars
+    if (qInput) {
+      qInput.removeAttribute('placeholder');
+      qInput.placeholder = '';
+      qInput.style.overflow = 'hidden';
+      qInput.style.overflowY = 'hidden';
+      qInput.style.scrollbarWidth = 'none';
+    }
+
     // Sync initial values from main form on mount
     if (qCDSelect && inputCD) {
       qCDSelect.value = inputCD.value || 'CD-01';
@@ -5123,7 +5144,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       qInput.style.height = 'auto';
       const newHeight = Math.min(Math.max(qInput.scrollHeight, 52), 150);
       qInput.style.height = newHeight + 'px';
-      qInput.style.overflowY = qInput.scrollHeight > 150 ? 'auto' : 'hidden';
+      qInput.style.overflow = 'hidden';
+      qInput.style.overflowY = 'hidden';
 
       const raw = qInput.value.trim();
       if (!raw) { setFb(''); return; }
@@ -5305,10 +5327,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (homeGamingDateDisplay) {
           homeGamingDateDisplay.textContent = currentBusinessDateStr;
         }
-        const allGamingDateEl = document.getElementById('all-entries-gaming-date');
-        if (allGamingDateEl) {
-          allGamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
-        }
+        updateAllEntriesHeaderDateTime();
 
         // Update active day for All Entries navigation
         const dayNum = Number(currentBusinessDateStr.split('-')[2]);
@@ -5446,7 +5465,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="user-card-left">
             <div class="user-card-row">
               <span class="user-card-label">USER ID:</span>
-              <span class="user-card-value user-id-val">${escapeHTML(user.username)}</span>
+              <span class="user-card-value user-id-val">${escapeHTML(String(user.username || '').toUpperCase())}</span>
               <span class="user-role-pill" style="color: ${roleColor}; border-color: ${roleColor};">${roleUpper}</span>
             </div>
             <div class="user-card-row">
@@ -5972,10 +5991,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           if (homeGamingDateDisplay) {
             homeGamingDateDisplay.textContent = currentBusinessDateStr;
           }
-          const allGamingDateEl = document.getElementById('all-entries-gaming-date');
-          if (allGamingDateEl) {
-            allGamingDateEl.textContent = `TODAY GAMING DATE: ${currentBusinessDateStr}`;
-          }
+          updateAllEntriesHeaderDateTime();
           const dayNum = Number(currentBusinessDateStr.split('-')[2]);
           if (!isNaN(dayNum)) {
             activeAllEntriesDay = dayNum;

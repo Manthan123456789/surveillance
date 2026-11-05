@@ -24,7 +24,7 @@
   <script src="jszip.min.js"></script>
   <script src="xlsx.full.min.js"></script>
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="style.css?v=35">
+  <link rel="stylesheet" href="style.css?v=36">
 </head>
 <body>
 
@@ -109,7 +109,7 @@
       <div class="header-right">
         <div class="user-profile">
           <i data-lucide="user-check" class="profile-icon"></i>
-          <span class="profile-name" id="user-badge-id">admin</span>
+          <span class="profile-name" id="user-badge-id">ADMIN</span>
         </div>
         <nav class="nav-actions">
           <button id="btn-major" class="btn-nav" title="View Major">
@@ -462,12 +462,12 @@
       <!-- ALL ENTRIES PANEL -->
       <section id="all-entries-panel-card" class="form-panel-card all-entries-fixed-layout hidden-panel" style="display: none !important;">
         
-        <!-- TOP HEADER: TITLE CENTERED & GAMING DAY RIGHT-ALIGNED -->
+        <!-- TOP HEADER: TITLE CENTERED & DATE / 24H TIME RIGHT-ALIGNED -->
         <div class="all-entries-header-bar">
           <div class="all-entries-header-side"></div>
           <h2 class="all-entries-title">ALL ENTRIES</h2>
           <div class="all-entries-header-side right">
-            <span id="all-entries-gaming-date" class="all-entries-gaming-tag">TODAY GAMING DAY</span>
+            <span id="all-entries-gaming-date" class="all-entries-gaming-tag">DATE: --</span>
           </div>
         </div>
 
@@ -618,7 +618,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0; margin-right: 12px; margin-left: 2px;"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
             <textarea id="officer-quick-input"
               rows="1"
-              style="flex: 1; resize: none; background: transparent; border: none; color: #ffffff; font-size: 1.2rem; font-family: inherit; font-weight: 500; line-height: 1.45; outline: none; min-height: 52px; max-height: 140px; padding: 14px 8px; overflow-y: hidden;"
+              style="flex: 1; resize: none; background: transparent; border: none; color: #ffffff; font-size: 1.2rem; font-family: inherit; font-weight: 500; line-height: 1.45; outline: none; min-height: 52px; max-height: 140px; padding: 14px 8px; overflow: hidden; overflow-y: hidden; overflow-x: hidden; scrollbar-width: none; -ms-overflow-style: none;"
             ></textarea>
             <button id="btn-officer-quick-save" title="Send Entry"
               style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 50%; width: 50px; height: 50px; min-width: 50px; min-height: 50px; padding: 0; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 16px rgba(99,102,241,0.55); transition: transform 0.15s ease;">
@@ -998,7 +998,7 @@
     </div>
   </div>
 
-  <script src="app.js?v=67"></script>
+  <script src="app.js?v=68"></script>
 
   <!-- DIRECT PHOTO UPLOADS -->
   <input type="file" id="direct-photo-barred" accept="image/*" style="display:none;" />
