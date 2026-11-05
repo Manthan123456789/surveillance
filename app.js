@@ -6404,65 +6404,63 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   updateAllEntriesView();
   checkAuthSession();
-});
 
-async function extractExcelImages(arrayBuffer) {
-  const imagesMap = {};
-  try {
-    if (typeof JSZip === 'undefined') return imagesMap;
-    const zip = await JSZip.loadAsync(arrayBuffer);
-    
-    // Find all drawing XML files
-    const drawingFiles = Object.keys(zip.files).filter(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
-    
-    for (const dFilePath of drawingFiles) {
-      // Find corresponding .rels file
-      const dFileName = dFilePath.split('/').pop();
-      const relsFilePath = "xl/drawings/_rels/" + dFileName + ".rels";
+  async function extractExcelImages(arrayBuffer) {
+    const imagesMap = {};
+    try {
+      if (typeof JSZip === 'undefined') return imagesMap;
+      const zip = await JSZip.loadAsync(arrayBuffer);
       
-      const drawingsRelFile = zip.file(relsFilePath);
-      if (!drawingsRelFile) continue;
-      const relsXml = await drawingsRelFile.async("string");
+      // Find all drawing XML files
+      const drawingFiles = Object.keys(zip.files).filter(f => /^xl\/drawings\/drawing\d+\.xml$/.test(f));
       
-      const rIdMap = {};
-      const relsMatch = relsXml.matchAll(/<Relationship Id="([^"]+)"[^>]+Target="([^"]+)"/g);
-      for (const match of relsMatch) {
-         let target = match[2];
-         if (target.startsWith('../')) target = target.substring(3);
-         rIdMap[match[1]] = target;
+      for (const dFilePath of drawingFiles) {
+        // Find corresponding .rels file
+        const dFileName = dFilePath.split('/').pop();
+        const relsFilePath = "xl/drawings/_rels/" + dFileName + ".rels";
+        
+        const drawingsRelFile = zip.file(relsFilePath);
+        if (!drawingsRelFile) continue;
+        const relsXml = await drawingsRelFile.async("string");
+        
+        const rIdMap = {};
+        const relsMatch = relsXml.matchAll(/<Relationship Id="([^"]+)"[^>]+Target="([^"]+)"/g);
+        for (const match of relsMatch) {
+           let target = match[2];
+           if (target.startsWith('../')) target = target.substring(3);
+           rIdMap[match[1]] = target;
+        }
+        
+        const drawingsFile = zip.file(dFilePath);
+        const drawingsXml = await drawingsFile.async("string");
+        
+        const anchors = drawingsXml.split(/<xdr:twoCellAnchor|<xdr:oneCellAnchor/);
+        for (let i = 1; i < anchors.length; i++) {
+           const anchor = anchors[i];
+           const rowMatch = anchor.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/);
+           const blipMatch = anchor.match(/<a:blip[\s\S]*?r:embed="([^"]+)"/);
+           if (rowMatch && blipMatch) {
+              const rowIdx = parseInt(rowMatch[1], 10);
+              const rId = blipMatch[1];
+              const mediaPath = rIdMap[rId];
+              if (mediaPath) {
+                 const mediaFile = zip.file("xl/" + mediaPath);
+                 if (mediaFile) {
+                    const base64 = await mediaFile.async("base64");
+                    let ext = mediaPath.split('.').pop().toLowerCase();
+                    if (ext === 'jpg') ext = 'jpeg';
+                    imagesMap[rowIdx] = `data:image/${ext};base64,${base64}`;
+                 }
+              }
+           }
+        }
       }
-      
-      const drawingsFile = zip.file(dFilePath);
-      const drawingsXml = await drawingsFile.async("string");
-      
-      const anchors = drawingsXml.split(/<xdr:twoCellAnchor|<xdr:oneCellAnchor/);
-      for (let i = 1; i < anchors.length; i++) {
-         const anchor = anchors[i];
-         const rowMatch = anchor.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)<\/xdr:row>/);
-         const blipMatch = anchor.match(/<a:blip[\s\S]*?r:embed="([^"]+)"/);
-         if (rowMatch && blipMatch) {
-            const rowIdx = parseInt(rowMatch[1], 10);
-            const rId = blipMatch[1];
-            const mediaPath = rIdMap[rId];
-            if (mediaPath) {
-               const mediaFile = zip.file("xl/" + mediaPath);
-               if (mediaFile) {
-                  const base64 = await mediaFile.async("base64");
-                  let ext = mediaPath.split('.').pop().toLowerCase();
-                  if (ext === 'jpg') ext = 'jpeg';
-                  imagesMap[rowIdx] = `data:image/${ext};base64,${base64}`;
-               }
-            }
-         }
-      }
+    } catch(err) {
+      console.error("Image extraction error:", err);
     }
-  } catch(err) {
-    console.error("Image extraction error:", err);
+    return imagesMap;
   }
-  return imagesMap;
-}
 
-document.addEventListener('DOMContentLoaded', () => {
   const directBarredInput = document.getElementById('direct-photo-barred');
   const directStaffInput = document.getElementById('direct-photo-staff');
   let currentPhotoId = null;
@@ -6584,7 +6582,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // OFFLINE SURVEILLANCE AI ASSISTANT (100% OFFLINE)
   // Answers any question regarding surveillance entries, buying, visits, cage totals
   // ==========================================================================
-  const btnFloatingAI = document.getElementById('btn-floating-ai-assistant');
+  const btnInputAI = document.getElementById('btn-input-ai-assistant');
   const aiAssistantModal = document.getElementById('ai-assistant-modal');
   const btnCloseAIModal = document.getElementById('btn-close-ai-modal');
   const aiChatMessages = document.getElementById('ai-chat-messages');
@@ -6612,9 +6610,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (aiAssistantModal) aiAssistantModal.style.display = 'none';
   }
 
-  if (btnFloatingAI) {
-    btnFloatingAI.addEventListener('click', () => {
-      openAIAssistantModal();
+  if (btnInputAI) {
+    btnInputAI.addEventListener('click', () => {
+      const qInput = document.getElementById('officer-quick-input');
+      const val = qInput ? qInput.value.trim() : '';
+      if (val) {
+        openAIAssistantModal(val);
+        qInput.value = '';
+        qInput.style.height = '';
+      } else {
+        openAIAssistantModal();
+      }
     });
   }
 
@@ -6705,13 +6711,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function computeOfflineAnswer(rawQuery) {
     const q = String(rawQuery || '').toLowerCase().trim();
     const cleanQ = q.replace(/[?!,.]/g, '');
-    const activeDate = currentBusinessDateStr || getBusinessDate();
-    const allPool = Array.isArray(allEntries) ? allEntries : [];
+    const activeDate = (typeof currentBusinessDateStr !== 'undefined' ? currentBusinessDateStr : '') || 
+                       (typeof getBusinessDate === 'function' ? getBusinessDate() : '');
+    const allPool = (typeof allEntries !== 'undefined' && Array.isArray(allEntries)) ? allEntries : [];
 
     // Filter today's entries
     const todayEntries = allPool.filter(e => {
       if (!e) return false;
-      const ed = e.businessDate || (e.datetime ? getBusinessDate(e.datetime) : '');
+      const ed = e.businessDate || (e.datetime && typeof getBusinessDate === 'function' ? getBusinessDate(e.datetime) : '');
       return ed === activeDate;
     });
 
@@ -6923,7 +6930,8 @@ document.addEventListener('DOMContentLoaded', () => {
       /last.*seen/i.test(cleanQ)
     ) {
       let targetName = cleanQ
-        .replace(/when|did|he|she|last|visited|visit|came|come|of|the|guest|perticullar|particular|check/gi, '')
+        .replace(/\b(when|did|he|she|last|visited|visit|came|come|of|the|guest|perticullar|particular|check|tell|me|show|what|was|date|time|day|is)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
       if (!targetName && lastMentionedGuest) targetName = lastMentionedGuest;
 
@@ -7004,7 +7012,8 @@ document.addEventListener('DOMContentLoaded', () => {
       /how much.*(bought|buy|spent|spend)/i.test(cleanQ)
     ) {
       let targetName = cleanQ
-        .replace(/overall|total|lifetime|buying|buy|in|of|perticullar|particular|how|much|has|did|spend|spent|guest|the/gi, '')
+        .replace(/\b(overall|total|lifetime|buying|buy|in|of|perticullar|particular|how|much|has|did|spend|spent|guest|the|tell|me|show|what|is|are|check|find|search|for|give)\b/gi, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
       if (!targetName && lastMentionedGuest) targetName = lastMentionedGuest;
 
@@ -7168,8 +7177,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 6. INTENT: BARRED CHECK
     if (/barred/i.test(cleanQ)) {
       const targetName = cleanQ.replace(/is|barred|who|list|the|guest|check/gi, '').trim();
+      const barredList = (typeof barredGuests !== 'undefined' && Array.isArray(barredGuests)) ? barredGuests : [];
       if (!targetName || targetName === 'all' || targetName === 'guests') {
-        const count = Array.isArray(barredGuests) ? barredGuests.length : 0;
+        const count = barredList.length;
         return `
           <div>
             <div style="font-weight: 800; color: #ef4444; margin-bottom: 4px;">BARRED GUESTS DATABASE</div>
@@ -7179,7 +7189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
       }
 
-      const match = (Array.isArray(barredGuests) ? barredGuests : []).find(b => {
+      const match = barredList.find(b => {
         const bn = (b.guestname || b.name || '').toLowerCase();
         return bn.includes(targetName) || targetName.includes(bn);
       });

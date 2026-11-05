@@ -5057,34 +5057,36 @@ body.ultra-compact-view {
 /* ==========================================================================
    OFFLINE SURVEILLANCE AI ASSISTANT (FLOATING BUTTON & CHAT MODAL)
    ========================================================================== */
-.floating-ai-assistant-btn {
-  position: fixed;
-  right: 22px;
-  bottom: 82px;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #2563eb, #3b82f6);
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  box-shadow: 0 6px 22px rgba(37, 99, 235, 0.6), 0 0 0 0 rgba(37, 99, 235, 0.4);
+/* Input Bar Left AI Trigger Button */
+.btn-input-ai-assistant {
+  background: transparent;
+  border: none;
+  padding: 0;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 998;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
-  animation: pulse-ai-btn 3.5s infinite;
+  flex-shrink: 0;
+  margin-right: 12px;
+  margin-left: 2px;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease;
 }
 
-@keyframes pulse-ai-btn {
-  0% { box-shadow: 0 6px 20px rgba(37, 99, 235, 0.55); }
-  50% { box-shadow: 0 6px 25px rgba(56, 189, 248, 0.8), 0 0 0 8px rgba(37, 99, 235, 0.15); }
-  100% { box-shadow: 0 6px 20px rgba(37, 99, 235, 0.55); }
+.btn-input-ai-assistant:hover {
+  transform: scale(1.22);
+  filter: drop-shadow(0 0 10px #a78bfa) drop-shadow(0 0 16px #38bdf8);
 }
 
-.floating-ai-assistant-btn:hover {
-  transform: scale(1.12);
-  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+.btn-input-ai-assistant:active {
+  transform: scale(0.92);
+}
+
+.ai-sparkles-svg {
+  transition: stroke 0.2s ease;
+}
+
+.btn-input-ai-assistant:hover .ai-sparkles-svg {
+  stroke: #38bdf8;
 }
 
 .ai-quick-chip {
@@ -5166,6 +5168,16 @@ body.ultra-compact-view {
   font-weight: 800;
   font-family: Calibri, 'Segoe UI', Arial, sans-serif;
   font-size: 0.95rem;
+}
+
+/* Disable Microsoft Edge / Chromium Injected Writing Assistance & Cloud Compose widgets */
+[data-ms-editor="false"]::-webkit-contacts-auto-fill-button,
+[data-ms-editor="false"]::-webkit-credentials-auto-fill-button,
+[data-ms-editor="false"]::part(ms-editor),
+[data-ms-editor="false"]::part(editor-canvas) {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 
