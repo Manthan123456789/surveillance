@@ -4029,33 +4029,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let html = `
       <div class="excel-table-scroll-wrapper" style="width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch;">
-        <table class="excel-grid-table" style="width: 100%; min-width: max-content; table-layout: auto;">
+        <table class="excel-grid-table" style="width: 100%; min-width: 100%; table-layout: auto;">
           <thead>
             <tr class="excel-col-letter-row">
-              <th class="excel-row-num" style="width: 38px; min-width: 38px;"></th>
-              <th style="min-width: 140px;">A</th>
-              <th style="min-width: 85px;">B</th>
-              <th style="min-width: 90px;">C</th>
-              <th style="min-width: 100px;">D</th>
-              <th style="min-width: 150px;">E</th>
-              <th style="min-width: 85px;">F</th>
-              <th style="min-width: 120px;">G</th>
-              <th style="min-width: 320px;">H</th>
-              <th style="min-width: 240px;">I</th>
+              <th class="excel-row-num" style="width: 32px; min-width: 32px;"></th>
+              <th style="min-width: 110px;">A</th>
+              <th style="min-width: 55px;">B</th>
+              <th style="min-width: 60px;">C</th>
+              <th style="min-width: 70px;">D</th>
+              <th style="min-width: 95px;">E</th>
+              <th style="min-width: 55px;">F</th>
+              <th style="min-width: 75px;">G</th>
+              <th style="min-width: 170px;">H</th>
+              <th style="min-width: 150px;">I</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td class="excel-row-num">1</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 140px;">DATE &amp; TIME</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 85px;">SURV ID</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 90px;">TYPE</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 100px;">AMOUNT</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 150px;">GUEST NAME</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 85px;">CARD</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 120px;">OTHER INFO</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 320px;">SENTENCE FORMAT</td>
-              <td class="excel-cell excel-header-cell" style="min-width: 240px;">GUEST SUMMARY</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 110px;">DATE &amp; TIME</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 55px;">SURV ID</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 60px;">TYPE</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 70px;">AMOUNT</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 95px;">GUEST NAME</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 55px;">CARD</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 75px;">OTHER INFO</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 170px;">SENTENCE FORMAT</td>
+              <td class="excel-cell excel-header-cell" style="min-width: 150px;">GUEST SUMMARY</td>
             </tr>
     `;
 
