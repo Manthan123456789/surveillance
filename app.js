@@ -310,6 +310,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${year}-${month}-${day}`;
   }
 
+  // Helper: Format YYYY-MM-DD into DD-MM-YYYY (e.g. 2026-11-05 -> 05-11-2026)
+  function formatDateDMY(dateVal) {
+    if (!dateVal) return '';
+    const s = String(dateVal).trim();
+    const match = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      return `${match[3]}-${match[2]}-${match[1]}`;
+    }
+    return s;
+  }
+
+  // Helper: Format datetime (YYYY-MM-DDTHH:mm:ss or YYYY-MM-DD HH:mm:ss) into DD-MM-YYYY HH:mm:ss
+  function formatDateTimeDMY(dateTimeVal) {
+    if (!dateTimeVal) return 'N/A';
+    const s = String(dateTimeVal).trim();
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}:\d{2}(?::\d{2})?)/);
+    if (m) {
+      return `${m[3]}-${m[2]}-${m[1]} ${m[4]}`;
+    }
+    const mDate = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (mDate) {
+      return `${mDate[3]}-${mDate[2]}-${mDate[1]}`;
+    }
+    return s.replace('T', ' ');
+  }
+
   // Helper: Check if an entry belongs to today's business session.
   function isEntryForToday(e) {
     if (!e) return false;
@@ -337,18 +363,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, '0');
     const d = String(now.getDate()).padStart(2, '0');
-    const dateStr = currentBusinessDateStr || getBusinessDate() || `${y}-${m}-${d}`;
+    const rawDateStr = currentBusinessDateStr || getBusinessDate() || `${y}-${m}-${d}`;
+    const dateStr = formatDateDMY(rawDateStr);
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
 
-    // 1. All Entries header: DATE: YYYY-MM-DD HH:MM:SS HRS
+    // 1. All Entries header: DATE: DD-MM-YYYY HH:MM:SS HRS
     const allEl = document.getElementById('all-entries-gaming-date');
     if (allEl) {
       allEl.textContent = `DATE: ${dateStr} ${hh}:${mm}:${ss} HRS`;
     }
 
-    // 2. Home screen badge: YYYY-MM-DD HH:MM:SS (24-hour time)
+    // 2. Home screen badge: DD-MM-YYYY HH:MM:SS (24-hour time)
     if (homeGamingDateDisplay) {
       homeGamingDateDisplay.textContent = `${dateStr} ${hh}:${mm}:${ss}`;
     }
@@ -656,7 +683,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         const amtClass = ['CASHIN', 'C/IN', 'ISSUE', 'KEYIN'].includes(type) ? 'text-green' : 'text-red';
         const amtFormatted = formatCurrency(Number(entry.amount) || 0);
-        const displayDate = entry.datetime ? entry.datetime.replace('T', ' ') : 'N/A';
+        const displayDate = entry.datetime ? formatDateTimeDMY(entry.datetime) : 'N/A';
         const cdText = escapeHTML(entry.cd || 'N/A');
 
         let actionButtons = `
@@ -1510,7 +1537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       details += `
         <div style="display:flex; flex-direction:column; gap:6px; text-align:left; font-size:0.95rem;">
           <div><strong style="color:#ef4444;">REASON:</strong> <span style="color:#fff;">${escapeHTML(reasonText || 'No reason specified')}</span></div>
-          ${dateText ? `<div><strong style="color:#94a3b8;">DATE:</strong> <span style="color:#fff;">${escapeHTML(dateText)}</span></div>` : ''}
+          ${dateText ? `<div><strong style="color:#94a3b8;">DATE:</strong> <span style="color:#fff;">${escapeHTML(formatDateDMY(dateText))}</span></div>` : ''}
           ${instText ? `<div><strong style="color:#94a3b8;">INSTRUCTION:</strong> <span style="color:#fff;">${escapeHTML(instText)}</span></div>` : ''}
           ${propText ? `<div><strong style="color:#94a3b8;">PROPERTY:</strong> <span style="color:#fff;">${escapeHTML(propText)}</span></div>` : ''}
         </div>
@@ -1646,7 +1673,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               </div>
               <div class="barred-field-row">
                 <span class="barred-field-label">DATE:</span>
-                <span class="barred-field-value">${escapeHTML(String(dateVal || '-'))}</span>
+                <span class="barred-field-value">${escapeHTML(String(formatDateDMY(dateVal) || '-'))}</span>
               </div>
               <div class="barred-field-row">
                 <span class="barred-field-label">REASON:</span>
@@ -1830,7 +1857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <td class="excel-row-num">${rowNum}</td>
           <td class="excel-cell" style="text-align:center;padding:4px;">${photoHtml}</td>
           <td class="excel-cell" style="font-weight:800;color:#0f172a;font-size:13.5px;">${escapeHTML(String(g.guestname || '-'))}</td>
-          <td class="excel-cell">${escapeHTML(String(g.date || '-'))}</td>
+          <td class="excel-cell">${escapeHTML(String(formatDateDMY(g.date) || '-'))}</td>
           <td class="excel-cell" style="color:#b91c1c;font-weight:600;">${escapeHTML(String(g.reason || '-'))}</td>
           <td class="excel-cell">${escapeHTML(String(g.inst || '-'))}</td>
           <td class="excel-cell">${escapeHTML(String(g.property || '-'))}</td>
@@ -2772,7 +2799,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       statsEl.innerHTML = `
         <div style="width: 100%; border: 1.5px solid #000000; box-shadow: 0 4px 14px rgba(0,0,0,0.45); overflow: hidden; font-family: Calibri, 'Segoe UI', Arial, sans-serif; background: #ffffff;">
           <div style="background: #1e3a8a; color: #ffffff; font-weight: 800; font-size: 13.5px; padding: 7px 12px; border-bottom: 1.5px solid #000000; text-align: center; letter-spacing: 0.5px; text-transform: uppercase;">
-            DATE: ${escapeHTML(targetDate)}
+            DATE: ${escapeHTML(formatDateDMY(targetDate))}
           </div>
           <div style="background: #8ea9db; color: #800000; font-weight: 800; font-size: 14px; padding: 7px 12px; border-bottom: 1.5px solid #000000; text-align: center; letter-spacing: 0.5px;">
             GUEST SUMMARY
@@ -2798,7 +2825,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (currentGuestEntries.length === 0) {
         listEl.innerHTML = `
           <div style="color: #94a3b8; font-size: 12px; font-weight: 700; text-align: center; padding: 14px 0; text-transform: uppercase; letter-spacing: 0.5px;">
-            NO ENTRIES FOR ${escapeHTML(targetDate)}
+            NO ENTRIES FOR ${escapeHTML(formatDateDMY(targetDate))}
           </div>
         `;
       } else {
@@ -4060,7 +4087,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       html += `
         <tr>
           <td class="excel-row-num">${rowNum}</td>
-          <td class="excel-cell">${e ? escapeHTML(String((e.datetime || '').replace('T', ' ')).toUpperCase()) : ''}</td>
+          <td class="excel-cell">${e ? escapeHTML(String(formatDateTimeDMY(e.datetime)).toUpperCase()) : ''}</td>
           <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.surv || '').toUpperCase()) : ''}</td>
           <td class="excel-cell" style="font-weight:600;">${e ? escapeHTML(String(e.type || '').toUpperCase()) : ''}</td>
           <td class="excel-cell" style="text-align:center;font-weight:700;">${e ? Number(e.amount || 0).toLocaleString('en-IN') : ''}</td>
@@ -4736,7 +4763,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let sentenceHtml = '';
 
     displayEntries.forEach(entry => {
-      const displayDate = entry.datetime ? entry.datetime.replace('T', ' ') : 'N/A';
+      const displayDate = entry.datetime ? formatDateTimeDMY(entry.datetime) : 'N/A';
       const timeStr = entry.datetime
         ? (entry.datetime.includes('T') ? entry.datetime.split('T')[1].slice(0, 5) : entry.datetime.slice(-5))
         : '—';
@@ -5576,7 +5603,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnStartNewDay.addEventListener('click', () => {
       const current = currentBusinessDateStr || getBusinessDate();
       if (modalCurrentDateDisplay) {
-        modalCurrentDateDisplay.textContent = current || 'Not Set';
+        modalCurrentDateDisplay.textContent = formatDateDMY(current) || 'Not Set';
       }
 
       // Pre-fill with next day
@@ -5663,7 +5690,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Sync day pagination UI
         renderDayPagination();
 
-        alert(`New Gaming Day started: ${currentBusinessDateStr}\nPrevious entries have been archived.`);
+        alert(`New Gaming Day started: ${formatDateDMY(currentBusinessDateStr)}\nPrevious entries have been archived.`);
       } catch (err) {
         console.error('Error starting new gaming day:', err);
         alert(`Failed to start new gaming day: ${err.message}`);
@@ -6157,7 +6184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const amt = entry.amount ? Number(entry.amount).toLocaleString('en-IN') : '0';
         entriesHtml += `
           <tr>
-            <td>${entry.datetime || '-'}</td>
+            <td>${entry.datetime ? formatDateTimeDMY(entry.datetime) : '-'}</td>
             <td>${entry.type || '-'}</td>
             <td>${amt}</td>
             <td>${entry.guestname ? `<a href="javascript:void(0)" class="guest-hyperlink" data-guest="${escapeHTML(entry.guestname)}">${escapeHTML(String(entry.guestname).toUpperCase())}</a>` : '-'}</td>
