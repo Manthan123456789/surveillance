@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
       if (data.currentBusinessDate) {
         currentBusinessDateStr = data.currentBusinessDate;
-        if (homeGamingDateDisplay) homeGamingDateDisplay.textContent = currentBusinessDateStr;
+        if (typeof updateAllDateTimeDisplays === 'function') updateAllDateTimeDisplays();
       }
     }
   } catch (e) {
@@ -321,10 +321,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }).format(value);
   }
 
-  // Helper: Format and continuously update the Date & 24h Time tag (DATE: YYYY-MM-DD HH:MM:SS HRS)
-  function updateAllEntriesHeaderDateTime() {
-    const el = document.getElementById('all-entries-gaming-date');
-    if (!el) return;
+  // Helper: Format and continuously update the Date & 24h Time on both All Entries & Home screens
+  function updateAllDateTimeDisplays() {
     const now = getServerTimeDate();
     const y = now.getFullYear();
     const m = String(now.getMonth() + 1).padStart(2, '0');
@@ -333,11 +331,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    el.textContent = `DATE: ${dateStr} ${hh}:${mm}:${ss} HRS`;
+
+    // 1. All Entries header: DATE: YYYY-MM-DD HH:MM:SS HRS
+    const allEl = document.getElementById('all-entries-gaming-date');
+    if (allEl) {
+      allEl.textContent = `DATE: ${dateStr} ${hh}:${mm}:${ss} HRS`;
+    }
+
+    // 2. Home screen badge: YYYY-MM-DD HH:MM:SS (24-hour time)
+    if (homeGamingDateDisplay) {
+      homeGamingDateDisplay.textContent = `${dateStr} ${hh}:${mm}:${ss}`;
+    }
   }
-  // Initialize and keep the date & 24h time continuously updated in real time
-  updateAllEntriesHeaderDateTime();
-  setInterval(updateAllEntriesHeaderDateTime, 1000);
+
+  // Alias for backward-compatibility with any existing call
+  const updateAllEntriesHeaderDateTime = updateAllDateTimeDisplays;
+
+  // Initialize and keep all date & 24h time displays continuously updated in real time
+  updateAllDateTimeDisplays();
+  setInterval(updateAllDateTimeDisplays, 1000);
 
   let allEntriesArchiveData = [];
   let archiveMetadata = {};
@@ -948,10 +960,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       allEntries = data.entries || [];
       if (data.currentBusinessDate) {
         currentBusinessDateStr = data.currentBusinessDate;
-        updateAllEntriesHeaderDateTime();
-        if (homeGamingDateDisplay) {
-          homeGamingDateDisplay.textContent = currentBusinessDateStr;
-        }
+        updateAllDateTimeDisplays();
         // Refresh the hidden datetime input so future entries use the correct business date
         if (inputDateTime) inputDateTime.value = getLocalTimeISOString();
       }
@@ -3213,37 +3222,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   <cellXfs count="9">
     <!-- 0: Normal -->
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-    <!-- 1: Header (Light Blue, Bold Maroon, Centered & Middle Align, All Borders) -->
+    <!-- 1: Header (Light Blue, Bold Maroon, Centered & Middle Align, All Borders, NO WRAP) -->
     <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="1"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
-    <!-- 2: Data Text / Regular Cells (Bold Black, Centered & Middle Align, All Borders) -->
+    <!-- 2: Data Text / Regular Cells (Bold Black, Centered & Middle Align, All Borders, NO WRAP) -->
     <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="1"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
-    <!-- 3: Data Amount (Bold Black, Centered & Middle Align, All Borders, Comma Format) -->
+    <!-- 3: Data Amount (Bold Black, Centered & Middle Align, All Borders, Comma Format, NO WRAP) -->
     <xf numFmtId="164" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1" applyNumberFormat="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 4: Yellow Separator Cell in Guest Summary (Solid Yellow Fill, All Borders) -->
     <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 5: Empty Cell with Borders and Centered Alignment -->
     <xf numFmtId="0" fontId="1" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 6: Red Style for Negative RESULT (Soft Red Fill, Bold Red Text, Centered & Middle Align, All Borders) -->
     <xf numFmtId="0" fontId="3" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
     <!-- 7: Fluorescent Green Style for Positive RESULT (Fluorescent Green Fill, Bold Green Text, Centered & Middle Align, All Borders) -->
     <xf numFmtId="0" fontId="4" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
-    <!-- 8: Guest Name Box (Soft Ice Blue Fill, Bold Black Text, Centered & Middle Align, All Borders) -->
+    <!-- 8: Guest Name Box (Soft Ice Blue Fill, Bold Black Text, Centered & Middle Align, All Borders, NO WRAP) -->
     <xf numFmtId="0" fontId="1" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
-      <alignment horizontal="center" vertical="center" wrapText="1"/>
+      <alignment horizontal="center" vertical="center" wrapText="0"/>
     </xf>
   </cellXfs>
 </styleSheet>`;
@@ -3326,6 +3335,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
           return `<row r="${r}"${rowTagRest}${newRowContent}${closeTag}`;
         });
+
+        // Auto-fit column widths (<cols>): guarantee wide columns so words never wrap or truncate
+        const defaultColWidths = {
+          'A': 22, // DATE & TIME
+          'B': 12, // SURV ID
+          'C': 12, // TYPE
+          'D': 16, // AMOUNT
+          'E': 26, // GUEST NAME
+          'F': 14, // CARD
+          'G': 20, // OTHER INFO
+          'H': 48, // SENTENCE FORMAT
+          'I': 36  // GUEST SUMMARY
+        };
+
+        const colLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
+        const maxColLen = {};
+        const scanCellRegex = /<c r="([A-I])\d+"[^>]*>(?:<v>([\s\S]*?)<\/v>)?<\/c>/g;
+        let sm;
+        while ((sm = scanCellRegex.exec(xml)) !== null) {
+          const col = sm[1];
+          let rawVal = sm[2] || '';
+          rawVal = rawVal.replace('__POS__', '').replace('__NEG__', '').replace('__YELLOW__', '');
+          if (!maxColLen[col] || rawVal.length > maxColLen[col]) {
+            maxColLen[col] = rawVal.length;
+          }
+        }
+
+        let colsXml = '<cols>';
+        colLetters.forEach((col, idx) => {
+          const colIdx = idx + 1;
+          const computed = (maxColLen[col] || 0) + 4;
+          const finalW = Math.max(computed, defaultColWidths[col]);
+          colsXml += `<col min="${colIdx}" max="${colIdx}" width="${finalW}" customWidth="1"/>`;
+        });
+        colsXml += '</cols>';
+
+        if (xml.includes('<cols>') || xml.includes('<cols ')) {
+          xml = xml.replace(/<cols[\s\S]*?<\/cols>/, colsXml);
+        } else {
+          xml = xml.replace('<sheetData', colsXml + '<sheetData');
+        }
 
         loadedZip.file(sheetFile, xml);
       }
@@ -3421,15 +3471,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Dynamic Auto-fit for all column widths based on maximum content length
     const defaultMinWidths = [
-      20, // A: DATE & TIME
+      22, // A: DATE & TIME
       12, // B: SURV ID
       12, // C: TYPE
       16, // D: AMOUNT
-      24, // E: GUEST NAME
+      26, // E: GUEST NAME
       14, // F: CARD
-      18, // G: OTHER INFO
-      42, // H: SENTENCE FORMAT
-      34  // I: GUEST SUMMARY
+      20, // G: OTHER INFO
+      48, // H: SENTENCE FORMAT
+      36  // I: GUEST SUMMARY
     ];
 
     const colWidths = [];
@@ -4383,7 +4433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (!isArchive) {
         if (recordCountBadge) {
-          recordCountBadge.textContent = `${displayEntries.length} ${displayEntries.length === 1 ? 'Record' : 'Records'}`;
+          recordCountBadge.textContent = `${displayEntries.length}`;
         }
       }
 
@@ -5324,10 +5374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Advance current business date
         currentBusinessDateStr = result.newDate || newDate;
-        if (homeGamingDateDisplay) {
-          homeGamingDateDisplay.textContent = currentBusinessDateStr;
-        }
-        updateAllEntriesHeaderDateTime();
+        updateAllDateTimeDisplays();
 
         // Update active day for All Entries navigation
         const dayNum = Number(currentBusinessDateStr.split('-')[2]);
@@ -5988,10 +6035,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (data.type === 'date-changed' && data.newDate) {
           console.log('[SSE] Business date changed to:', data.newDate);
           currentBusinessDateStr = data.newDate;
-          if (homeGamingDateDisplay) {
-            homeGamingDateDisplay.textContent = currentBusinessDateStr;
-          }
-          updateAllEntriesHeaderDateTime();
+          updateAllDateTimeDisplays();
           const dayNum = Number(currentBusinessDateStr.split('-')[2]);
           if (!isNaN(dayNum)) {
             activeAllEntriesDay = dayNum;
